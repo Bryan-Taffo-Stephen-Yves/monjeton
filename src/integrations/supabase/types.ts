@@ -1062,6 +1062,30 @@ export type Database = {
           },
         ]
       }
+      feature_usage: {
+        Row: {
+          feature: string
+          month: string
+          updated_at: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          feature: string
+          month: string
+          updated_at?: string
+          used?: number
+          user_id: string
+        }
+        Update: {
+          feature?: string
+          month?: string
+          updated_at?: string
+          used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_scores: {
         Row: {
           created_at: string
@@ -2354,6 +2378,7 @@ export type Database = {
           original_amount: number | null
           original_currency: string | null
           scope: string
+          source: string
           status: string
           type: string
           user_id: string
@@ -2376,6 +2401,7 @@ export type Database = {
           original_amount?: number | null
           original_currency?: string | null
           scope?: string
+          source?: string
           status?: string
           type: string
           user_id: string
@@ -2398,6 +2424,7 @@ export type Database = {
           original_amount?: number | null
           original_currency?: string | null
           scope?: string
+          source?: string
           status?: string
           type?: string
           user_id?: string
@@ -2772,6 +2799,11 @@ export type Database = {
       claim_pending_payment: { Args: never; Returns: Json }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       clear_user_pin: { Args: never; Returns: undefined }
+      consume_feature: {
+        Args: { _feature: string; _user_id: string }
+        Returns: Json
+      }
+      free_limit: { Args: { _feature: string }; Returns: number }
       get_invite_by_token: {
         Args: { _token: string }
         Returns: {
@@ -2793,24 +2825,6 @@ export type Database = {
         }
       }
       has_active_pro: { Args: { _user_id: string }; Returns: boolean }
-      free_limit: {
-        Args: { _feature: string }
-        Returns: number
-      }
-      consume_feature: {
-        Args: { _feature: string; _user_id: string }
-        Returns: Json
-      }
-      monthly_usage: {
-        Args: { _user_id?: string }
-        Returns: {
-          feature: string
-          free_limit: number
-          resets_at: string
-          unlimited: boolean
-          used: number
-        }[]
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2840,6 +2854,17 @@ export type Database = {
       }
       join_caisse_via_token: { Args: { _token: string }; Returns: Json }
       mark_overdue_installments: { Args: never; Returns: undefined }
+      monthly_usage: {
+        Args: { _user_id?: string }
+        Returns: {
+          feature: string
+          free_limit: number
+          resets_at: string
+          unlimited: boolean
+          used: number
+        }[]
+      }
+      plan_limit: { Args: { _feature: string; _plan: string }; Returns: number }
       preview_caisse_invite: { Args: { _token: string }; Returns: Json }
       recalculate_cycle_collected: {
         Args: { p_cycle_id: string }
@@ -2861,6 +2886,7 @@ export type Database = {
           locked_seconds: number
         }[]
       }
+      user_plan: { Args: { _user_id: string }; Returns: string }
       verify_user_pin: {
         Args: { _pin_hash: string }
         Returns: {
