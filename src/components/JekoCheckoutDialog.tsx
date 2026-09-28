@@ -14,11 +14,11 @@ const PLANS: Record<PlanKey, { name: string; price: number; label: string }> = {
 };
 
 const METHODS: { id: JekoMethod; label: string; logo: string }[] = [
-  { id: "wave", label: "Wave", logo: "/assets/wave.png" },
-  { id: "orange", label: "Orange Money", logo: "/assets/orange-money.svg" },
-  { id: "mtn", label: "MTN MoMo", logo: "/assets/mtn-momo.png" },
-  { id: "moov", label: "Moov Money", logo: "/assets/moov.png" },
-  { id: "djamo", label: "Djamo", logo: "/assets/djamo.svg" },
+  { id: "wave", label: "Wave", logo: "/assets/pay/wave.svg" },
+  { id: "orange", label: "Orange Money", logo: "/assets/pay/orange-money.svg" },
+  { id: "mtn", label: "MTN MoMo", logo: "/assets/pay/mtn-momo.svg" },
+  { id: "moov", label: "Moov Money", logo: "/assets/pay/moov-money.svg" },
+  { id: "djamo", label: "Djamo", logo: "/assets/pay/djamo.svg" },
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -162,13 +162,20 @@ const JekoCheckoutDialog = () => {
                       onClick={() => setMethod(m.id)}
                       disabled={loading}
                       aria-pressed={method === m.id}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition ${
+                      className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2.5 text-sm font-medium transition ${
                         method === m.id
                           ? "border-primary bg-primary/10 text-foreground neon-glow"
                           : "border-border bg-secondary text-foreground hover:border-primary/60 hover:bg-secondary/70"
                       }`}
                     >
-                      <img src={m.logo} alt={m.label} className="h-6 w-6 shrink-0 object-contain" />
+                      <img
+                        src={m.logo}
+                        alt=""
+                        aria-hidden="true"
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 shrink-0 rounded-[10px]"
+                      />
                       <span className="truncate">{m.label}</span>
                     </button>
                   ))}

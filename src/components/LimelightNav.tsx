@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, Plus, PieChart, Settings, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useFabHidden } from "@/lib/fabVisibility";
 
 /**
  * Barre de navigation flottante + bouton d'ajout détaché.
@@ -44,7 +45,8 @@ const LimelightNav = () => {
     location.pathname === path ||
     (path !== "/dashboard" && location.pathname.startsWith(path));
 
-  const showFab = !HIDE_FAB_ON.includes(location.pathname);
+  const fabHiddenByScreen = useFabHidden();
+  const showFab = !HIDE_FAB_ON.includes(location.pathname) && !fabHiddenByScreen;
 
   return (
     <>
