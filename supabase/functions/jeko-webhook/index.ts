@@ -229,7 +229,19 @@ Deno.serve(async (req) => {
     }
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    // Renouvellement anticipé : les 30 jours s'ajoutent à la fin de la période
+    // en cours, sinon les jours déjà payés seraient perdus (le bandeau invite
+    // à renouveler jusqu'à 7 jours avant l'échéance).
+    const { data: currentSub } = await supabase
+      .from('subscriptions')
+      .select('status, expires_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const currentEnd = currentSub?.status === 'active' && currentSub.expires_at
+      ? new Date(currentSub.expires_at).getTime()
+      : 0;
+    const periodStart = Math.max(now.getTime(), currentEnd);
+    const expiresAt = new Date(periodStart + 30 * 24 * 60 * 60 * 1000);
     const graceUntil = new Date(expiresAt.getTime() + 3 * 24 * 60 * 60 * 1000);
 
     const { error: upErr } = await supabase.from('subscriptions').upsert(

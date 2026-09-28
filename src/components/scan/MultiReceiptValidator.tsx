@@ -204,6 +204,7 @@ export const MultiReceiptValidator = ({
           note: item.merchant + (item.note ? ` - ${item.note}` : ''),
           category_id: catId,
           wallet_id: item.wallet_id,
+          source: 'scan',
         } as any);
 
         if (error) throw error;

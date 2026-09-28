@@ -7,7 +7,9 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/MoneyInput";
-import { Plus, Wallet, TrendingDown, TrendingUp, Minus as MinusIcon, Sparkles, AlertTriangle, Loader2, Pencil, X, CheckCircle2, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { Plus, Wallet, TrendingDown, TrendingUp, Sparkles, AlertTriangle, Loader2, Pencil, X, CheckCircle2, RefreshCw, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
+import { resolveCategoryIcon } from "@/lib/categoryIconMap";
+import { withAlpha } from "@/lib/budgetPlan";
 import { BudgetCoachingFlow } from "@/components/budget/BudgetCoachingFlow";
 import { PlanHistoryView } from "@/components/budget/PlanHistoryView";
 import { History as HistoryIcon } from "lucide-react";
@@ -129,9 +131,22 @@ const Budgets = () => {
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
   ];
 
+  const [reloadKey, setReloadKey] = useState(0);
+  const todayRef = new Date();
+  const isCurrentMonth = month === todayRef.getMonth() + 1 && year === todayRef.getFullYear();
+  const isPastMonth = year < todayRef.getFullYear() || (year === todayRef.getFullYear() && month < todayRef.getMonth() + 1);
+  // On peut préparer le mois suivant, pas au-delà.
+  const maxMonthIndex = todayRef.getFullYear() * 12 + todayRef.getMonth() + 1;
+  const canGoNext = year * 12 + month - 1 < maxMonthIndex;
+  const shiftMonth = (delta: number) => {
+    const idx = year * 12 + (month - 1) + delta;
+    setYear(Math.floor(idx / 12));
+    setMonth((idx % 12) + 1);
+  };
+
   useEffect(() => {
     if (user) loadData();
-  }, [user, month, year]);
+  }, [user, month, year, reloadKey]);
 
   useEffect(() => {
     const checkCoaching = async () => {
@@ -146,12 +161,14 @@ const Budgets = () => {
         .maybeSingle();
       const isApprouve = data?.statut === 'approuve';
       setCoachingDone(isApprouve);
-      setShowCoaching(!isApprouve);
+      // Le parcours de création s'ouvre tout seul pour le mois en cours ou à
+      // venir ; un mois passé sans budget affiche simplement la page.
+      setShowCoaching(!isApprouve && !isPastMonth);
       setCoachingPlan(data);
       setLoadingCoaching(false);
     };
     checkCoaching();
-  }, [user, month, year]);
+  }, [user, month, year, reloadKey]);
 
   const loadData = async () => {
     if (!user) return;
@@ -236,12 +253,12 @@ const Budgets = () => {
     }
   };
 
-  const saveTotalBudget = async () => {
-    if (!user) return;
+  const saveTotalBudget = async (): Promise<boolean> => {
+    if (!user) return false;
     const amount = clampAmount(newBudgetAmount);
     if (!amount || amount <= 0) {
       toast({ title: "Montant invalide", description: "Entre un nombre supérieur à 0", variant: "destructive" });
-      return;
+      return false;
     }
     try {
       if (budgetId) {
@@ -252,10 +269,12 @@ const Budgets = () => {
         if (error) throw error;
       }
       setNewBudgetAmount("");
-      toast({ title: "Budget global mis à jour" });
+      toast({ title: "Budget du mois mis à jour" });
       loadData();
+      return true;
     } catch (e: any) {
       toast({ title: "Erreur sauvegarde", description: e?.message, variant: "destructive" });
+      return false;
     }
   };
 
@@ -625,37 +644,67 @@ const Budgets = () => {
     return { text: "En bonne voie", color: "text-primary" };
   };
 
+  // Budget de référence : le budget global, sinon la somme des postes.
+  const effectiveBudget = totalBudget > 0 ? totalBudget : totalCategoryBudgeted;
+  const usedPercent = effectiveBudget > 0 ? (totalSpent / effectiveBudget) * 100 : 0;
+  const left = effectiveBudget - totalSpent;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const daysLeftInclToday = isCurrentMonth ? daysInMonth - todayRef.getDate() + 1 : 0;
+  const perDay = daysLeftInclToday > 0 && left > 0 ? Math.floor(left / daysLeftInclToday) : 0;
+  const ringColor =
+    usedPercent > 100 || usedPercent >= 85
+      ? "hsl(var(--destructive))"
+      : usedPercent >= 60
+        ? "hsl(30, 90%, 55%)"
+        : "hsl(var(--primary))";
+  const heroStatus = getStatusLabel(usedPercent);
+
+  const [editingTotal, setEditingTotal] = useState(false);
+
+  const sortedCategoryBudgets = useMemo(
+    () =>
+      [...categoryBudgets].sort((a, b) => {
+        const pa = a.budget_amount > 0 ? (a.spent || 0) / a.budget_amount : 0;
+        const pb = b.budget_amount > 0 ? (b.spent || 0) / b.budget_amount : 0;
+        return pb - pa;
+      }),
+    [categoryBudgets]
+  );
+
+  const projection = (() => {
+    if (!effectiveBudget || amountsHidden || !isCurrentMonth) return null;
+    const daysPassed = todayRef.getDate();
+    const projectedTotal = Math.round((totalSpent / daysPassed) * daysInMonth);
+    return { projectedTotal, over: projectedTotal > effectiveBudget };
+  })();
+
   return (
     <DashboardLayout title="Budgets">
-      {/* Month selector */}
-      <div className="flex items-center justify-center gap-3 mb-3">
+      {/* Sélecteur de mois */}
+      <div className="flex items-center justify-between gap-2 mb-4 rounded-2xl bg-card border border-border p-1.5">
         <button
-          onClick={() => setYear(y => y - 1)}
-          className="w-8 h-8 rounded-full glass flex items-center justify-center text-muted-foreground hover:text-foreground"
+          type="button"
+          onClick={() => shiftMonth(-1)}
+          aria-label="Mois précédent"
+          className="w-11 h-11 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
         >
-          ←
+          <ChevronLeft className="w-5 h-5" />
         </button>
-        <span className="text-sm font-semibold text-foreground">{year}</span>
+        <div className="text-center">
+          <p className="text-[15px] font-extrabold text-foreground">{monthNames[month - 1]} {year}</p>
+          <p className={`text-[11px] font-semibold ${isCurrentMonth ? "text-primary" : "text-muted-foreground"}`}>
+            {isCurrentMonth ? "Ce mois-ci" : isPastMonth ? "Mois passé" : "Mois prochain"}
+          </p>
+        </div>
         <button
-          onClick={() => setYear(y => y + 1)}
-          disabled={year >= new Date().getFullYear()}
-          className="w-8 h-8 rounded-full glass flex items-center justify-center text-muted-foreground disabled:opacity-30"
+          type="button"
+          onClick={() => shiftMonth(1)}
+          disabled={!canGoNext}
+          aria-label="Mois suivant"
+          className="w-11 h-11 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
         >
-          →
+          <ChevronRight className="w-5 h-5" />
         </button>
-      </div>
-      <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
-        {monthNames.map((name, i) => (
-          <button
-            key={i}
-            onClick={() => setMonth(i + 1)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-              month === i + 1 ? "bg-primary text-primary-foreground" : "glass text-muted-foreground"
-            }`}
-          >
-            {name}
-          </button>
-        ))}
       </div>
 
       {loadingCoaching ? (
@@ -664,678 +713,457 @@ const Budgets = () => {
         </div>
       ) : showCoaching ? (
         <BudgetCoachingFlow
+          key={`${year}-${month}`}
           month={month}
           year={year}
+          onCancel={coachingDone ? () => setShowCoaching(false) : undefined}
           onComplete={() => {
             setShowCoaching(false);
             setCoachingDone(true);
-            // Recharger pour afficher les budgets générés
-            setTimeout(() => window.location.reload(), 300);
+            setReloadKey((k) => k + 1);
+            window.scrollTo({ top: 0 });
           }}
         />
-      ) : (
-        <>
-          {/* Bouton refaire le coaching */}
-          <Button
-            variant="outline"
-            onClick={() => setShowCoaching(true)}
-            className="w-full glass mb-4"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refaire le coaching budget
-          </Button>
-
-          {coachingPlan?.id && (
-            <div className="mb-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowHistory(!showHistory)}
-                className="w-full text-xs glass"
-              >
-                <HistoryIcon className="w-3.5 h-3.5 mr-1.5" />
-                {showHistory ? "Masquer l'historique" : "Voir mes modifications"}
-              </Button>
-              {showHistory && (
-                <div className="mt-3">
-                  <PlanHistoryView coachingId={coachingPlan.id} />
-                </div>
-              )}
-            </div>
-          )}
-
-      {/* Exceeded budgets banner */}
-      <AnimatePresence>
-        {exceededCount > 0 && !loading && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl bg-destructive/15 border border-destructive/30 mb-4"
-          >
-            <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
-            <p className="text-sm text-destructive font-medium">
-              {exceededCount} budget{exceededCount > 1 ? "s" : ""} dépassé{exceededCount > 1 ? "s" : ""} ce mois-ci
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <BudgetAlertBanner alerts={budgetAlerts} />
-
-      {loading ? (
+      ) : loading ? (
         <div className="space-y-4">
           <CardSkeleton />
           <CardSkeleton />
         </div>
+      ) : effectiveBudget <= 0 && categoryBudgets.length === 0 ? (
+        /* Aucun budget pour ce mois */
+        <div className="rounded-3xl border border-border bg-card p-8 text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/15 flex items-center justify-center">
+            <Wallet className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-lg font-extrabold mt-4">Pas de budget pour {monthNames[month - 1].toLowerCase()}</p>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            En 3 étapes, on répartit ton revenu pour tenir tout le mois.
+          </p>
+          <Button className="mt-5 h-12 w-full gradient-primary text-primary-foreground font-bold" onClick={() => setShowCoaching(true)}>
+            <Sparkles className="w-4 h-4 mr-2" /> Créer mon budget
+          </Button>
+        </div>
       ) : (
         <>
-
-          {/* ── Monthly Summary Header ── */}
-          {(totalBudget > 0 || categoryBudgets.length > 0) && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-card rounded-2xl p-4 mb-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground font-medium">Résumé du mois</p>
-                  <button
-                    type="button"
-                    onClick={toggleAmountsHidden}
-                    className="p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                    title={amountsHidden ? "Afficher les montants" : "Masquer les montants"}
-                    aria-label={amountsHidden ? "Afficher les montants" : "Masquer les montants"}
-                  >
-                    {amountsHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                {!amountsHidden && (
-                  <p className={`text-xs font-semibold ${getStatusLabel(budgetUsedPercent).color}`}>
-                    {getStatusLabel(budgetUsedPercent).text}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-baseline justify-between mb-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Budgété</p>
-                  <p className="text-lg font-bold text-foreground tabular-nums transition-opacity duration-300">
-                    {amountsHidden ? MASK_AMT : `${fmt(totalBudget || totalCategoryBudgeted)}`}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Dépensé</p>
-                  <p className={`text-lg font-bold tabular-nums transition-opacity duration-300 ${!amountsHidden && isOverBudget ? "text-destructive" : "text-foreground"}`}>
-                    {amountsHidden ? MASK_AMT : `${fmt(totalSpent)}`}
-                  </p>
-                </div>
-              </div>
-              <div className="transition-opacity duration-300">
-                {amountsHidden ? (
-                  <div className="h-2 w-full rounded-full bg-secondary" style={{ width: 0 }} />
-                ) : (
-                  <BudgetProgressBar percent={budgetUsedPercent} />
-                )}
-              </div>
-              {/* Score de santé global */}
-              {!amountsHidden && (() => {
-                const score = Math.max(0, Math.min(100, Math.round(100 - budgetUsedPercent)));
-                const health =
-                  score >= 70
-                    ? { label: "Bonne santé", color: "text-primary", bg: "bg-primary/10" }
-                    : score >= 40
-                      ? { label: "Attention", color: "text-yellow-500", bg: "bg-yellow-500/10" }
-                      : { label: "Critique", color: "text-destructive", bg: "bg-destructive/10" };
-                return (
-                  <div className={`flex items-center justify-between px-3 py-2 rounded-xl mt-2 ${health.bg}`}>
-                    <span className={`text-xs font-bold ${health.color}`}>{health.label}</span>
-                    <span className={`text-lg font-black tabular-nums ${health.color}`}>{score}/100</span>
-                  </div>
-                );
-              })()}
-              <p className="text-[10px] text-muted-foreground mt-1.5 text-center tabular-nums transition-opacity duration-300">
-                {amountsHidden
-                  ? `${MASK_PCT} utilisé`
-                  : <>{Math.round(budgetUsedPercent)}% utilisé{totalBudget > totalSpent && ` · Reste ${fmt(totalBudget - totalSpent)}`}</>}
-              </p>
-            </motion.div>
-          )}
-
-          {/* Phrase clé — répond à la seule question qui compte :
-              est-ce que je tiens jusqu'à la fin du mois ? */}
-          {(() => {
-            if (!totalBudget || totalBudget <= 0 || amountsHidden) return null;
-            const today = new Date();
-            const daysInMonth = new Date(year, month, 0).getDate();
-            const isCurrent =
-              month === today.getMonth() + 1 && year === today.getFullYear();
-            if (!isCurrent) return null;
-            const daysLeft = Math.max(0, daysInMonth - today.getDate());
-            const left = totalBudget - totalSpent;
-            const perDay = daysLeft > 0 ? Math.floor(left / daysLeft) : left;
-
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden rounded-2xl p-4 mb-4"
-                style={{
-                  background:
-                    left >= 0
-                      ? "linear-gradient(150deg, hsl(var(--primary) / 0.14), hsl(var(--card)) 72%)"
-                      : "linear-gradient(150deg, hsl(var(--destructive) / 0.16), hsl(var(--card)) 72%)",
-                  border:
-                    left >= 0
-                      ? "1px solid hsl(var(--primary) / 0.22)"
-                      : "1px solid hsl(var(--destructive) / 0.28)",
-                }}
-              >
-                <span
-                  className={`inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.1em] ${
-                    left >= 0 ? "text-primary" : "text-destructive"
-                  }`}
-                >
-                  {left >= 0 ? (
-                    <Wallet className="w-3 h-3" />
-                  ) : (
-                    <AlertTriangle className="w-3 h-3" />
-                  )}
-                  À retenir
-                </span>
-
-                {left >= 0 ? (
-                  <p className="mt-2 text-[15px] font-semibold leading-relaxed text-foreground">
-                    Il te reste{" "}
-                    <span className="font-extrabold text-primary tabular-nums">
-                      {fmt(left)}
-                    </span>{" "}
-                    à dépenser.
-                    {daysLeft > 0 && (
-                      <>
-                        {" "}Ça fait{" "}
-                        <span className="font-extrabold text-primary tabular-nums">
-                          {fmt(perDay)}
-                        </span>{" "}
-                        par jour jusqu'au {daysInMonth}.
-                      </>
-                    )}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-[15px] font-semibold leading-relaxed text-foreground">
-                    Tu as dépassé ton budget de{" "}
-                    <span className="font-extrabold text-destructive tabular-nums">
-                      {fmt(Math.abs(left))}
-                    </span>
-                    .
-                    {daysLeft > 0 && (
-                      <> Il reste {daysLeft} jour{daysLeft > 1 ? "s" : ""} avant la fin du mois.</>
-                    )}
-                  </p>
-                )}
-              </motion.div>
-            );
-          })()}
-
-          {/* Global budget card */}
-          <BorderRotate className={`p-5 mb-4 ${!amountsHidden && isOverBudget ? "border border-destructive/50" : ""}`} animationSpeed={10}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-primary" />
-                <h2 className="font-semibold text-foreground">Budget global</h2>
+          {/* ── Carte principale ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-3xl p-5 mb-3 border"
+            style={{
+              background: `linear-gradient(150deg, ${
+                left >= 0 ? "hsl(var(--primary) / 0.13)" : "hsl(var(--destructive) / 0.15)"
+              }, hsl(var(--card)) 68%)`,
+              borderColor: left >= 0 ? "hsl(var(--primary) / 0.22)" : "hsl(var(--destructive) / 0.3)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-muted-foreground">Budget de {monthNames[month - 1].toLowerCase()}</span>
                 <button
                   type="button"
                   onClick={toggleAmountsHidden}
-                  className="p-1 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                  title={amountsHidden ? "Afficher les montants" : "Masquer les montants"}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                   aria-label={amountsHidden ? "Afficher les montants" : "Masquer les montants"}
                 >
                   {amountsHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {!amountsHidden && isOverBudget && <TrendingDown className="w-5 h-5 text-destructive animate-pulse" />}
-            </div>
-            <p className="text-xl sm:text-2xl font-bold text-foreground mb-1 truncate tabular-nums transition-opacity duration-300">
-              {amountsHidden ? MASK_AMT : `${fmt(totalSpent)} / ${fmt(totalBudget)}`}
-            </p>
-            <div className="transition-opacity duration-300 mb-3">
-              {amountsHidden ? (
-                <div className="h-2 w-full rounded-full bg-secondary" style={{ width: 0 }} />
-              ) : (
-                <BudgetProgressBar percent={budgetUsedPercent} />
+              {!amountsHidden && (
+                <span className={`text-[11px] font-bold rounded-full px-2.5 py-1 bg-background/40 ${heroStatus.color}`}>
+                  {heroStatus.text}
+                </span>
               )}
             </div>
-            {!amountsHidden && isOverBudget && (
-              <p className="text-xs text-destructive font-medium animate-pulse">
-                Budget dépassé de {fmt(totalSpent - totalBudget)} !
-              </p>
-            )}
-            {/* Projection fin de mois */}
-            {(() => {
-              if (!totalBudget || amountsHidden) return null;
-              const today = new Date();
-              const daysInMonth = new Date(year, month, 0).getDate();
-              const todayCheck = new Date();
-              const isCurrent = month === todayCheck.getMonth() + 1 && year === todayCheck.getFullYear();
-              const daysPassed = isCurrent ? today.getDate() : daysInMonth;
-              const daysLeft = daysInMonth - daysPassed;
-              if (daysPassed === 0) return null;
-              const avgPerDay = totalSpent / daysPassed;
-              const projectedTotal = Math.round(totalSpent + avgPerDay * daysLeft);
-              const isProjectedOver = projectedTotal > totalBudget;
-              return (
-                <div
-                  className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-xl text-xs ${
-                    isProjectedOver
-                      ? "bg-destructive/10 border border-destructive/20"
-                      : "bg-secondary/50"
-                  }`}
-                >
-                  {isProjectedOver ? <AlertTriangle className="w-4 h-4 flex-shrink-0 text-destructive" /> : <TrendingUp className="w-4 h-4 flex-shrink-0 text-primary" />}
-                  <p className={isProjectedOver ? "text-destructive" : "text-muted-foreground"}>
-                    À ce rythme, fin de mois :{" "}
-                    <span className="font-bold text-foreground tabular-nums">{fmt(projectedTotal)}</span>
-                    {isProjectedOver
-                      ? ` (+${fmt(projectedTotal - totalBudget)} de dépassement prévu)`
-                      : isCurrent
-                        ? ` · Il te reste ${daysLeft} jour${daysLeft > 1 ? "s" : ""}`
-                        : ""}
-                  </p>
-                </div>
-              );
-            })()}
-            <div className="flex gap-2 mt-3">
-              <MoneyInput
-                placeholder="Nouveau budget"
-                value={newBudgetAmount}
-                onChange={(n) => setNewBudgetAmount(n ? String(n) : "")}
-                showCurrency={false}
-                className="flex-1 [&>input]:glass"
-              />
-              <Button onClick={saveTotalBudget} size="sm">OK</Button>
-            </div>
-          </BorderRotate>
 
-          {/* AI Suggestions */}
-          <div className="mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full glass border-primary/30 text-primary"
+            <div className="flex items-center gap-5 mt-3">
+              <div className="relative w-[124px] h-[124px] flex-shrink-0" aria-hidden="true">
+                <svg viewBox="0 0 124 124" className="w-full h-full -rotate-90">
+                  <circle cx="62" cy="62" r="52" fill="none" stroke="hsl(var(--secondary))" strokeWidth="12" />
+                  {!amountsHidden && (
+                    <motion.circle
+                      cx="62" cy="62" r="52" fill="none" stroke={ringColor} strokeWidth="12" strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 52}
+                      initial={{ strokeDashoffset: 2 * Math.PI * 52 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 52 * (1 - Math.min(usedPercent, 100) / 100) }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    />
+                  )}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-extrabold tabular-nums">{amountsHidden ? MASK_PCT : `${Math.round(usedPercent)}%`}</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">dépensé</span>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-muted-foreground">{left >= 0 ? "Il te reste" : "Dépassé de"}</p>
+                <p className={`text-[26px] leading-tight font-extrabold tabular-nums ${left >= 0 ? "text-primary" : "text-destructive"}`}>
+                  {amountsHidden ? MASK_AMT : fmt(Math.abs(left))}
+                </p>
+                {!amountsHidden && perDay > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                    soit <span className="font-extrabold text-foreground tabular-nums">{fmt(perDay)}</span> par jour jusqu'au {daysInMonth}
+                  </p>
+                )}
+                {!amountsHidden && left < 0 && isCurrentMonth && (
+                  <p className="text-xs text-muted-foreground mt-1.5">Reste {daysLeftInclToday} jour{daysLeftInclToday > 1 ? "s" : ""} dans le mois.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <div className="rounded-2xl bg-background/40 px-3 py-2.5">
+                <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1"><TrendingDown className="w-3.5 h-3.5" /> Dépensé</p>
+                <p className="text-base font-extrabold tabular-nums mt-0.5">{amountsHidden ? MASK_AMT : fmt(totalSpent)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setNewBudgetAmount(String(effectiveBudget || "")); setEditingTotal(true); }}
+                className="rounded-2xl bg-background/40 px-3 py-2.5 text-left hover:bg-background/60 transition-colors"
+                aria-label="Modifier le budget du mois"
+              >
+                <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1"><Wallet className="w-3.5 h-3.5" /> Budget <Pencil className="w-3 h-3 ml-auto" /></p>
+                <p className="text-base font-extrabold tabular-nums mt-0.5">{amountsHidden ? MASK_AMT : fmt(effectiveBudget)}</p>
+              </button>
+            </div>
+
+            {projection && (
+              <div className={`flex items-start gap-2 mt-3 px-3 py-2.5 rounded-2xl text-xs ${projection.over ? "bg-destructive/10" : "bg-background/40"}`}>
+                {projection.over
+                  ? <AlertTriangle className="w-4 h-4 flex-shrink-0 text-destructive" />
+                  : <TrendingUp className="w-4 h-4 flex-shrink-0 text-primary" />}
+                <p className={projection.over ? "text-destructive" : "text-muted-foreground"}>
+                  À ce rythme, tu finiras le mois à{" "}
+                  <span className="font-extrabold text-foreground tabular-nums">{fmt(projection.projectedTotal)}</span>
+                  {projection.over ? ` (${fmt(projection.projectedTotal - effectiveBudget)} de trop).` : "."}
+                </p>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Actions secondaires */}
+          <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-1 px-1" style={{ scrollbarWidth: "none" }}>
+            {!isPastMonth && (
+              <button type="button" onClick={() => setShowCoaching(true)} className="h-10 px-3.5 rounded-full border border-border bg-card text-xs font-bold whitespace-nowrap flex items-center gap-1.5 hover:border-primary/60">
+                <RefreshCw className="w-3.5 h-3.5 text-primary" /> Refaire mon budget
+              </button>
+            )}
+            <button
+              type="button"
               onClick={generateAISuggestions}
               disabled={suggestionsLoading}
+              className="h-10 px-3.5 rounded-full border border-border bg-card text-xs font-bold whitespace-nowrap flex items-center gap-1.5 hover:border-primary/60 disabled:opacity-60"
             >
-              {suggestionsLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4 mr-2" />
-              )}
-              Suggestion IA
-            </Button>
-
-            <AnimatePresence>
-              {showSuggestions && editableSuggestions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-3 space-y-3 overflow-hidden"
-                >
-                  {/* Récap total temps réel */}
-                  <div className={`glass-card rounded-2xl p-4 border ${isOverAllocated ? "border-destructive/40" : "border-primary/25"}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Budget total du mois</p>
-                        <p className="text-xl font-black text-foreground tabular-nums">{fmt(totalBudget)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Suggéré</p>
-                        <p className={`text-xl font-black tabular-nums ${isOverAllocated ? "text-destructive" : "text-primary"}`}>
-                          {fmt(suggestionsTotal)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden mb-2">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(allocationPercent, 100)}%` }}
-                        transition={{ duration: 0.3 }}
-                        className={`h-full rounded-full ${
-                          isOverAllocated ? "bg-destructive" : allocationPercent > 90 ? "bg-yellow-500" : "gradient-primary"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">{allocationPercent}% alloué</span>
-                      <span className={isOverAllocated ? "text-destructive font-bold" : "text-muted-foreground"}>
-                        {isOverAllocated
-                          ? `Dépassement de ${fmt(suggestionsTotal - totalBudget)}`
-                          : `Reste ${fmt(suggestionsRestant)} à allouer`}
-                      </span>
-                    </div>
-                    {isOverAllocated && (
-                      <div className="mt-3 flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20">
-                        <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-destructive">
-                          Réduis les montants pour rester dans ton budget avant d'approuver.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {aiGlobalAdvice && (
-                    <div className="glass-card rounded-xl p-3 border border-primary/15 flex gap-2 items-start">
-                      <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-foreground italic leading-relaxed">{aiGlobalAdvice}</p>
-                    </div>
-                  )}
-
-                  <div className="space-y-2.5">
-                    {editableSuggestions.map((s) => {
-                      const restant = Math.max(0, s.montant_suggere - (s.already_spent || 0));
-                      const noMatch = !s.category_id;
-                      const isApproving = approvingId === s.categorie;
-                      return (
-                        <motion.div
-                          key={s.categorie}
-                          initial={{ scale: 0.97, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="glass-card rounded-xl p-3.5 border border-primary/15"
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <p className="text-sm font-bold text-foreground truncate">{s.categorie}</p>
-                              <span className="text-[10px] bg-secondary text-muted-foreground px-2 py-0.5 rounded-full font-medium flex-shrink-0 tabular-nums">
-                                {s.pourcentage}%
-                              </span>
-                              {noMatch && (
-                                <span className="text-[10px] bg-yellow-500/15 text-yellow-500 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
-                                  Nouvelle
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {s.conseil && (
-                            <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{s.conseil}</p>
-                          )}
-                          <div className="flex items-center gap-2 mb-2">
-                            <label className="text-[11px] text-muted-foreground flex-shrink-0">Montant :</label>
-                            <MoneyInput
-                              value={s.montant_suggere}
-                              onChange={(n) => updateSuggestionAmount(s.categorie, n)}
-                              onBlur={(e) => updateSuggestionAmount(s.categorie, clampAmount(Number((e.target as HTMLInputElement).value.replace(/\D/g, ''))))}
-                              min={0}
-                              showCurrency={false}
-                              className="flex-1 [&>input]:bg-secondary [&>input]:border-border [&>input]:text-sm [&>input]:h-8 [&>input]:tabular-nums"
-                            />
-                            <span className="text-xs text-muted-foreground flex-shrink-0">F</span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground tabular-nums mb-2.5">
-                            Déjà dépensé : {fmt(s.already_spent || 0)}
-                            {" · "}Restant à dépenser :{" "}
-                            <span className={restant > 0 ? "text-primary font-semibold" : "text-destructive"}>
-                              {fmt(restant)}
-                            </span>
-                          </p>
-                          <button
-                            onClick={() => approveSuggestion(s)}
-                            disabled={isOverAllocated || isApproving || s.montant_suggere <= 0}
-                            className="w-full gradient-primary text-primary-foreground rounded-lg py-2 text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-                          >
-                            {isApproving ? (
-                              <span className="flex items-center justify-center gap-2">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                Approbation...
-                              </span>
-                            ) : noMatch ? (
-                              `Créer "${s.categorie}" et appliquer`
-                            ) : (
-                              `Approuver ${fmt(s.montant_suggere)}`
-                            )}
-                          </button>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex gap-2 mt-4 sticky bottom-0 bg-background pt-3 pb-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 glass"
-                      onClick={() => {
-                        setShowSuggestions(false);
-                        setEditableSuggestions([]);
-                      }}
-                      disabled={approvingAll}
-                    >
-                      Fermer
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="flex-1 gradient-primary text-primary-foreground font-bold"
-                      onClick={approveAllSuggestions}
-                      disabled={isOverAllocated || approvingAll || editableSuggestions.length === 0}
-                    >
-                      {approvingAll ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                          Approbation...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                          Approuver tout ({editableSuggestions.length})
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <p className="text-[10px] text-muted-foreground italic px-1 text-center">
-                    Modifie chaque montant pour ajuster ta répartition. Les budgets s'ajustent automatiquement à mesure que tu dépenses.
-                  </p>
-                </motion.div>
-              )}
-              {showSuggestions && !suggestionsLoading && editableSuggestions.length === 0 && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-xs text-muted-foreground text-center mt-2"
-                >
-                  Aucune suggestion disponible.
-                </motion.p>
-              )}
-            </AnimatePresence>
+              {suggestionsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-primary" />}
+              Répartir avec l'IA
+            </button>
+            {coachingPlan?.id && (
+              <button type="button" onClick={() => setShowHistory(!showHistory)} className="h-10 px-3.5 rounded-full border border-border bg-card text-xs font-bold whitespace-nowrap flex items-center gap-1.5 hover:border-primary/60">
+                <HistoryIcon className="w-3.5 h-3.5 text-primary" /> {showHistory ? "Masquer l'historique" : "Mes modifications"}
+              </button>
+            )}
           </div>
 
-          {/* Category budgets */}
+          {showHistory && coachingPlan?.id && (
+            <div className="mb-4">
+              <PlanHistoryView coachingId={coachingPlan.id} />
+            </div>
+          )}
+
+          <AnimatePresence>
+            {exceededCount > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-destructive/15 border border-destructive/30 mb-4"
+              >
+                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
+                <p className="text-sm text-destructive font-semibold">
+                  {exceededCount} poste{exceededCount > 1 ? "s" : ""} dépassé{exceededCount > 1 ? "s" : ""} ce mois-ci
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <BudgetAlertBanner alerts={budgetAlerts} />
+
+          {/* Suggestions IA (inchangé) */}
+          <AnimatePresence>
+            {showSuggestions && editableSuggestions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-4 space-y-3 overflow-hidden"
+              >
+                <div className={`rounded-2xl bg-card p-4 border ${isOverAllocated ? "border-destructive/40" : "border-primary/25"}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Budget du mois</p>
+                      <p className="text-xl font-black text-foreground tabular-nums">{fmt(totalBudget)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Proposé</p>
+                      <p className={`text-xl font-black tabular-nums ${isOverAllocated ? "text-destructive" : "text-primary"}`}>
+                        {fmt(suggestionsTotal)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden mb-2">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(allocationPercent, 100)}%` }}
+                      transition={{ duration: 0.3 }}
+                      className={`h-full rounded-full ${isOverAllocated ? "bg-destructive" : allocationPercent > 90 ? "bg-yellow-500" : "gradient-primary"}`}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">{allocationPercent}% réparti</span>
+                    <span className={isOverAllocated ? "text-destructive font-bold" : "text-muted-foreground"}>
+                      {isOverAllocated ? `Trop de ${fmt(suggestionsTotal - totalBudget)}` : `Reste ${fmt(suggestionsRestant)}`}
+                    </span>
+                  </div>
+                </div>
+
+                {aiGlobalAdvice && (
+                  <div className="rounded-2xl bg-primary/5 p-3 border border-primary/20 flex gap-2 items-start">
+                    <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-foreground leading-relaxed">{aiGlobalAdvice}</p>
+                  </div>
+                )}
+
+                <div className="space-y-2.5">
+                  {editableSuggestions.map((s) => {
+                    const restant = Math.max(0, s.montant_suggere - (s.already_spent || 0));
+                    const noMatch = !s.category_id;
+                    const isApproving = approvingId === s.categorie;
+                    return (
+                      <div key={s.categorie} className="rounded-2xl bg-card p-3.5 border border-border">
+                        <div className="flex items-center gap-2 mb-2 min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">{s.categorie}</p>
+                          <span className="text-[10px] bg-secondary text-muted-foreground px-2 py-0.5 rounded-full font-medium flex-shrink-0 tabular-nums">{s.pourcentage}%</span>
+                          {noMatch && <span className="text-[10px] bg-yellow-500/15 text-yellow-500 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Nouveau</span>}
+                        </div>
+                        {s.conseil && <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{s.conseil}</p>}
+                        <MoneyInput
+                          value={s.montant_suggere}
+                          onChange={(n) => updateSuggestionAmount(s.categorie, n)}
+                          min={0}
+                          className="mb-2 [&>input]:h-10 [&>input]:tabular-nums"
+                        />
+                        <p className="text-[11px] text-muted-foreground tabular-nums mb-2.5">
+                          Déjà dépensé : {fmt(s.already_spent || 0)} · Reste :{" "}
+                          <span className={restant > 0 ? "text-primary font-semibold" : "text-destructive"}>{fmt(restant)}</span>
+                        </p>
+                        <button
+                          onClick={() => approveSuggestion(s)}
+                          disabled={isOverAllocated || isApproving || s.montant_suggere <= 0}
+                          className="w-full h-10 gradient-primary text-primary-foreground rounded-xl text-xs font-bold disabled:opacity-40"
+                        >
+                          {isApproving ? "Enregistrement…" : noMatch ? `Créer « ${s.categorie} »` : `Garder ${fmt(s.montant_suggere)}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1 h-11" onClick={() => { setShowSuggestions(false); setEditableSuggestions([]); }} disabled={approvingAll}>
+                    Fermer
+                  </Button>
+                  <Button className="flex-1 h-11 gradient-primary text-primary-foreground font-bold" onClick={approveAllSuggestions} disabled={isOverAllocated || approvingAll || editableSuggestions.length === 0}>
+                    {approvingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 mr-1.5" /> Tout garder</>}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+            {showSuggestions && !suggestionsLoading && editableSuggestions.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center mb-4">Aucune suggestion disponible.</p>
+            )}
+          </AnimatePresence>
+
+          {/* ── Postes ── */}
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-foreground">Par catégorie</h2>
+            <h2 className="text-base font-extrabold text-foreground">Mes postes</h2>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="glass">
+                <Button size="sm" variant="outline" className="h-10 rounded-full">
                   <Plus className="w-4 h-4 mr-1" /> Ajouter
                 </Button>
               </DialogTrigger>
-              <DialogContent aria-describedby={undefined} className="glass-card border-border">
+              <DialogContent aria-describedby={undefined} className="bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle>Budget par catégorie</DialogTitle>
+                  <DialogTitle>Ajouter un poste</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3">
                   <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                    <SelectTrigger className="bg-secondary border-border">
+                    <SelectTrigger className="bg-secondary border-border h-11">
                       <SelectValue placeholder="Choisir une catégorie" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
+                      {categories.map((c) => {
+                        const Icon = resolveCategoryIcon(c.icon);
+                        return (
+                          <SelectItem key={c.id} value={c.id}>
+                            <span className="flex items-center gap-2">
+                              <Icon className="w-4 h-4" style={{ color: c.color }} /> {c.name}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <MoneyInput
-                    placeholder="Montant budget"
+                    placeholder="Montant pour le mois"
                     value={newCatBudget}
                     onChange={(n) => setNewCatBudget(n ? String(n) : "")}
-                    showCurrency={false}
-                    className="[&>input]:glass"
+                    className="[&>input]:h-11"
                   />
-                  <Button onClick={addCategoryBudget} className="w-full">Enregistrer</Button>
+                  <Button onClick={addCategoryBudget} className="w-full h-11 gradient-primary text-primary-foreground font-bold">Enregistrer</Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
 
-          {/* Category budget summary */}
-          {categoryBudgets.length > 0 && (
-            <div className="flex items-center justify-between text-xs text-muted-foreground mb-3 px-1 transition-opacity duration-300">
-              <span>Total catégories : {amountsHidden ? MASK_AMT : `${fmt(totalCategoryBudgeted)}`}</span>
-              <span>Dépensé : {amountsHidden ? MASK_AMT : `${fmt(totalCategorySpent)}`}</span>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {categoryBudgets.map((cb) => {
-              const pct = cb.budget_amount > 0 ? ((cb.spent || 0) / cb.budget_amount) * 100 : 0;
-              const over = (cb.spent || 0) > cb.budget_amount && cb.budget_amount > 0;
-              const pred = predictions.find(p => p.category === (cb.category?.name || ""));
+          <div className="space-y-2.5">
+            {sortedCategoryBudgets.map((cb) => {
+              const spent = cb.spent || 0;
+              const pct = cb.budget_amount > 0 ? (spent / cb.budget_amount) * 100 : 0;
+              const over = spent > cb.budget_amount && cb.budget_amount > 0;
+              const pred = predictions.find((p) => p.category === (cb.category?.name || ""));
               const trendIcon = pred?.trend === "up"
-                ? <TrendingUp className="w-3.5 h-3.5 text-destructive" />
+                ? <TrendingUp className="w-3.5 h-3.5 text-destructive" aria-label="En hausse" />
                 : pred?.trend === "down"
-                  ? <TrendingDown className="w-3.5 h-3.5 text-primary" />
-                  : pred ? <MinusIcon className="w-3.5 h-3.5 text-muted-foreground" /> : null;
+                  ? <TrendingDown className="w-3.5 h-3.5 text-primary" aria-label="En baisse" />
+                  : null;
               const status = getStatusLabel(pct);
+              const Icon = resolveCategoryIcon(cb.category?.icon);
+              const color = cb.category?.color || "hsl(var(--primary))";
+              const tip = (coachingPlan?.conseils_par_categorie as any)?.[cb.category?.name || ""];
 
               return (
                 <motion.div
                   key={cb.id}
+                  layout
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl bg-card border p-3.5"
+                  style={{ borderColor: !amountsHidden && over ? "hsl(var(--destructive) / 0.45)" : "hsl(var(--border))" }}
                 >
-                  <BorderRotate
-                    className={`p-4 ${over ? "border border-destructive/40" : ""} ${pct >= 85 ? "border-l-[3px] border-l-destructive" : pct >= 60 ? "border-l-[3px]" : ""}`}
-                    style={pct >= 60 && pct < 85 ? { borderLeftColor: "hsl(30, 90%, 55%)" } : undefined}
-                    animationSpeed={18}
-                  >
-                    <div className="flex items-center justify-between mb-1 gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {cb.category?.color && (
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: cb.category.color }}
-                          />
-                        )}
-                        <span className="font-medium text-foreground text-sm truncate">{cb.category?.name || "Non catégorisée"}</span>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: withAlpha(color, 0.16), color }}
+                      aria-hidden="true"
+                    >
+                      <Icon className="w-5 h-5" strokeWidth={2.2} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-foreground truncate">{cb.category?.name || "Sans catégorie"}</p>
                         {trendIcon}
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`text-[10px] font-semibold ${status.color}`}>
-                          {status.text}
-                        </span>
-                        {editingId !== cb.id ? (
-                          <button
-                            onClick={() => {
-                              setEditingId(cb.id);
-                              setEditValue(String(cb.budget_amount));
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {amountsHidden ? MASK_AMT : `${fmt(spent)} sur ${fmt(cb.budget_amount)}`}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-extrabold tabular-nums ${amountsHidden ? "" : over ? "text-destructive" : status.color}`}>
+                        {amountsHidden ? MASK : over ? `−${fmt(spent - cb.budget_amount)}` : fmt(cb.budget_amount - spent)}
+                      </p>
+                      <p className="text-[10px] font-semibold text-muted-foreground">{over ? "dépassé" : "reste"}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    {amountsHidden ? <div className="h-2 w-full rounded-full bg-secondary" /> : <BudgetProgressBar percent={pct} />}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className={`text-[11px] font-semibold ${amountsHidden ? "text-muted-foreground" : status.color}`}>
+                      {amountsHidden ? MASK_PCT : `${status.text} · ${Math.round(pct)} %`}
+                    </span>
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => {
+                          if (editingId === cb.id) { setEditingId(null); return; }
+                          setEditingId(cb.id);
+                          setEditValue(String(cb.budget_amount));
+                        }}
+                        className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors"
+                        aria-label={editingId === cb.id ? "Annuler la modification" : `Modifier le budget ${cb.category?.name || ""}`}
+                      >
+                        {editingId === cb.id ? <X className="w-4 h-4 text-muted-foreground" /> : <Pencil className="w-4 h-4 text-muted-foreground" />}
+                      </button>
+                      <ConfirmDeleteDialog onConfirm={() => deleteCategoryBudget(cb.id)} title="Supprimer ce poste du budget ?" />
+                    </div>
+                  </div>
+
+                  <AnimatePresence>
+                    {editingId === cb.id && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="flex gap-2 mt-2">
+                          <MoneyInput
+                            value={editValue}
+                            autoFocus
+                            onChange={(n) => setEditValue(n ? String(n) : "")}
+                            onKeyDown={async (e) => {
+                              if (e.key === "Enter") await saveInlineEdit(cb.id);
+                              if (e.key === "Escape") setEditingId(null);
                             }}
-                            className="p-1 rounded-lg hover:bg-secondary transition-colors"
-                            title="Modifier le budget"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="p-1 rounded-lg hover:bg-secondary transition-colors"
-                            title="Annuler"
-                          >
-                            <X className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                        )}
-                        <ConfirmDeleteDialog onConfirm={() => deleteCategoryBudget(cb.id)} title="Supprimer ce budget catégorie ?" />
-                      </div>
-                    </div>
-                    {/* Champ d'édition inline */}
-                    <AnimatePresence>
-                      {editingId === cb.id && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="flex gap-2 mt-2 mb-2">
-                            <MoneyInput
-                              value={editValue}
-                              autoFocus
-                              onChange={(n) => setEditValue(n ? String(n) : "")}
-                              onKeyDown={async (e) => {
-                                if (e.key === "Enter") await saveInlineEdit(cb.id);
-                                if (e.key === "Escape") setEditingId(null);
-                              }}
-                              showCurrency={false}
-                              className="flex-1 [&>input]:glass [&>input]:text-sm [&>input]:h-8"
-                              placeholder="Nouveau montant"
-                            />
-                            <Button
-                              size="sm"
-                              className="h-8 gradient-primary text-primary-foreground"
-                              onClick={() => saveInlineEdit(cb.id)}
-                            >
-                              OK
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    <div className="flex items-baseline justify-between mb-1.5 transition-opacity duration-300">
-                      <span className={`text-xs font-semibold tabular-nums ${!amountsHidden && over ? "text-destructive" : "text-foreground"}`}>
-                        {amountsHidden ? MASK_AMT : `${fmt(cb.spent || 0)} / ${fmt(cb.budget_amount)}`}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground tabular-nums">
-                        {amountsHidden ? MASK_PCT : `${Math.round(pct)}%`}
-                      </span>
-                    </div>
-                    <div className="transition-opacity duration-300">
-                      {amountsHidden ? (
-                        <div className="h-2 w-full rounded-full bg-secondary" style={{ width: 0 }} />
-                      ) : (
-                        <BudgetProgressBar percent={pct} />
-                      )}
-                    </div>
-                    {!amountsHidden && over && (
-                      <p className="text-[10px] text-destructive mt-1 font-medium animate-pulse">
-                        Dépassé de {fmt((cb.spent || 0) - cb.budget_amount)} !
-                      </p>
-                    )}
-                    {pred && !over && pred.predictedEndOfMonth > cb.budget_amount && (
-                      <p className="text-[10px] text-[hsl(30,90%,55%)] mt-1">
-                        Prévu : {fmt(Math.round(pred.predictedEndOfMonth))} en fin de mois
-                      </p>
-                    )}
-                    {(() => {
-                      const tip = (coachingPlan?.conseils_par_categorie as any)?.[cb.category?.name || ""];
-                      return tip ? (
-                        <div className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/15">
-                          <Sparkles className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
-                          <p className="text-[10px] text-muted-foreground leading-relaxed">{tip}</p>
+                            className="flex-1 [&>input]:h-10"
+                            placeholder="Nouveau montant"
+                          />
+                          <Button className="h-10 gradient-primary text-primary-foreground font-bold" onClick={() => saveInlineEdit(cb.id)}>OK</Button>
                         </div>
-                      ) : null;
-                    })()}
-                  </BorderRotate>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {!amountsHidden && pred && !over && pred.predictedEndOfMonth > cb.budget_amount && (
+                    <p className="text-[11px] text-[hsl(30,90%,55%)] mt-1.5">
+                      Prévu en fin de mois : {fmt(Math.round(pred.predictedEndOfMonth))}
+                    </p>
+                  )}
+                  {tip && (
+                    <div className="mt-2 flex items-start gap-1.5 px-2.5 py-2 rounded-xl bg-primary/5 border border-primary/15">
+                      <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{tip}</p>
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
-            {categoryBudgets.length === 0 && !loading && (
-              <div className="glass-card rounded-2xl p-8 text-center">
-                <p className="text-muted-foreground text-sm mb-2">Aucun budget par catégorie défini</p>
-                <p className="text-xs text-muted-foreground">
-                  Tes budgets se créent automatiquement dès que tu enregistres une dépense.
-                </p>
+            {categoryBudgets.length === 0 && (
+              <div className="rounded-2xl bg-card border border-border p-6 text-center">
+                <p className="text-sm font-semibold">Aucun poste pour ce mois</p>
+                <p className="text-xs text-muted-foreground mt-1">Ajoute un poste ou refais ton budget pour répartir ton argent.</p>
               </div>
             )}
           </div>
-        </>
-      )}
+
+          {/* Modifier le budget du mois */}
+          <Dialog open={editingTotal} onOpenChange={setEditingTotal}>
+            <DialogContent aria-describedby={undefined} className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle>Budget de {monthNames[month - 1].toLowerCase()}</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground -mt-2">Combien tu veux dépenser au maximum ce mois-ci ?</p>
+              <MoneyInput
+                value={newBudgetAmount}
+                onChange={(n) => setNewBudgetAmount(n ? String(n) : "")}
+                autoFocus
+                className="[&>input]:h-12 [&>input]:text-xl [&>input]:font-extrabold"
+              />
+              <Button
+                className="w-full h-11 gradient-primary text-primary-foreground font-bold"
+                onClick={async () => { if (await saveTotalBudget()) setEditingTotal(false); }}
+              >
+                Enregistrer
+              </Button>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </DashboardLayout>

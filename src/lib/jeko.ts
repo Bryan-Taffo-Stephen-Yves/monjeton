@@ -35,6 +35,27 @@ export async function openJekoCheckout(url: string): Promise<void> {
   window.location.href = url;
 }
 
+const CHECKOUT_STARTED_KEY = "jeko_checkout_started_at";
+
+/** Mémorise qu'un paiement a été lancé depuis cet appareil. */
+export function markCheckoutStarted(): void {
+  try {
+    localStorage.setItem(CHECKOUT_STARTED_KEY, String(Date.now()));
+  } catch {
+    /* stockage indisponible : sans conséquence */
+  }
+}
+
+/** Un paiement a-t-il été lancé depuis cet appareil ces derniers jours ? */
+export function checkoutStartedRecently(days = 30): boolean {
+  try {
+    const at = Number(localStorage.getItem(CHECKOUT_STARTED_KEY));
+    return at > 0 && Date.now() - at < days * 86400000;
+  } catch {
+    return false;
+  }
+}
+
 type JekoPlan = "pro" | "ultra";
 
 /**

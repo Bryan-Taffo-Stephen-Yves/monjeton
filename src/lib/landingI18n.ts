@@ -146,7 +146,8 @@ export const LANDING_STRINGS = {
     plan_free_cta: "S'inscrire",
     plan_free_features: [
       "1 portefeuille",
-      "50 transactions / mois",
+      "15 dépenses saisies / mois",
+      "5 scans IA et 5 saisies vocales / mois",
       "Catégorisation automatique",
       "Rapports basiques",
     ],
@@ -155,8 +156,9 @@ export const LANDING_STRINGS = {
       "Pour les utilisateurs réguliers qui veulent aller plus loin.",
     plan_pro_cta: "S'abonner",
     plan_pro_features: [
-      "Transactions illimitées",
-      "Scan IA des reçus (50/mois)",
+      "Dépenses illimitées",
+      "Scan IA des reçus (30/mois)",
+      "Saisie vocale (30/mois)",
       "Assistant IA financier",
       "Rapports avancés & export PDF",
       "Tontines & dettes",
@@ -167,7 +169,7 @@ export const LANDING_STRINGS = {
     plan_max_cta: "S'abonner",
     plan_max_features: [
       "Tout le plan Pro",
-      "Scan IA illimité",
+      "Scan IA et saisie vocale illimités",
       "Support prioritaire",
       "Accès anticipé aux nouvelles features",
     ],
@@ -208,7 +210,8 @@ export const LANDING_STRINGS = {
     pl_free_name: "Gratuit",
     pl_free_yearly: "pour toujours",
     pl_free_features: [
-      "Suivi dépenses & revenus",
+      "15 dépenses saisies / mois",
+      "5 scans IA et 5 saisies vocales / mois",
       "Tontines & caisses de base",
       "1 objectif d'épargne",
       "Historique 30 jours",
@@ -217,9 +220,9 @@ export const LANDING_STRINGS = {
     pl_pro_name: "Pro",
     pl_pro_yearly: "ou 19 900 FCFA / an",
     pl_pro_features: [
-      "Tout le plan Gratuit",
-      "Scan de factures IA illimité",
-      "Saisie vocale intelligente",
+      "Dépenses illimitées",
+      "Scan de factures IA (30 / mois)",
+      "Saisie vocale intelligente (30 / mois)",
       "Objectifs d'épargne illimités",
       "Rapports détaillés & dettes",
     ],
@@ -228,6 +231,7 @@ export const LANDING_STRINGS = {
     pl_ultra_yearly: "ou 49 900 FCFA / an",
     pl_ultra_features: [
       "Tout le plan Pro",
+      "Scan IA et saisie vocale illimités",
       "Mode entreprise",
       "Multi-comptes",
       "Export comptable",
@@ -423,7 +427,8 @@ export const LANDING_STRINGS = {
     plan_free_cta: "Sign up",
     plan_free_features: [
       "1 wallet",
-      "50 transactions / month",
+      "15 manual expenses / month",
+      "5 AI scans and 5 voice entries / month",
       "Automatic categorization",
       "Basic reports",
     ],
@@ -431,8 +436,9 @@ export const LANDING_STRINGS = {
     plan_pro_desc: "For regular users who want to go further.",
     plan_pro_cta: "Subscribe",
     plan_pro_features: [
-      "Unlimited transactions",
-      "AI receipt scan (50/month)",
+      "Unlimited expenses",
+      "AI receipt scan (30/month)",
+      "Voice entry (30/month)",
       "AI financial assistant",
       "Advanced reports & PDF export",
       "Tontines & debts",
@@ -442,7 +448,7 @@ export const LANDING_STRINGS = {
     plan_max_cta: "Subscribe",
     plan_max_features: [
       "Everything in Pro",
-      "Unlimited AI scan",
+      "Unlimited AI scan and voice entry",
       "Priority support",
       "Early access to new features",
     ],
@@ -483,7 +489,8 @@ export const LANDING_STRINGS = {
     pl_free_name: "Free",
     pl_free_yearly: "forever",
     pl_free_features: [
-      "Track expenses & income",
+      "15 manual expenses / month",
+      "5 AI scans and 5 voice entries / month",
       "Basic tontines & pools",
       "1 savings goal",
       "30-day history",
@@ -492,9 +499,9 @@ export const LANDING_STRINGS = {
     pl_pro_name: "Pro",
     pl_pro_yearly: "or 19,900 FCFA / year",
     pl_pro_features: [
-      "Everything in Free",
-      "Unlimited AI receipt scan",
-      "Smart voice entry",
+      "Unlimited expenses",
+      "AI receipt scan (30 / month)",
+      "Smart voice entry (30 / month)",
       "Unlimited savings goals",
       "Detailed reports & debts",
     ],
@@ -503,6 +510,7 @@ export const LANDING_STRINGS = {
     pl_ultra_yearly: "or 49,900 FCFA / year",
     pl_ultra_features: [
       "Everything in Pro",
+      "Unlimited AI scan and voice entry",
       "Business mode",
       "Multi-accounts",
       "Accounting export",
