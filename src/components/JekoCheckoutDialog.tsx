@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { openJekoCheckout, type JekoMethod } from "@/lib/jeko";
+import { openJekoCheckout, markCheckoutStarted, type JekoMethod } from "@/lib/jeko";
 
 type PlanKey = "pro" | "ultra";
 
@@ -102,6 +102,7 @@ const JekoCheckoutDialog = () => {
         throw new Error(json?.error || `HTTP ${res.status}`);
       }
       setPlan(null);
+      markCheckoutStarted();
       await openJekoCheckout(String(json.redirectUrl));
     } catch (e) {
       console.error("Création du paiement Jèko impossible", e);

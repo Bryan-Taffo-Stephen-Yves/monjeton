@@ -2354,6 +2354,7 @@ export type Database = {
           original_amount: number | null
           original_currency: string | null
           scope: string
+          source: string
           status: string
           type: string
           user_id: string
@@ -2376,6 +2377,7 @@ export type Database = {
           original_amount?: number | null
           original_currency?: string | null
           scope?: string
+          source?: string
           status?: string
           type: string
           user_id: string
@@ -2398,6 +2400,7 @@ export type Database = {
           original_amount?: number | null
           original_currency?: string | null
           scope?: string
+          source?: string
           status?: string
           type?: string
           user_id?: string

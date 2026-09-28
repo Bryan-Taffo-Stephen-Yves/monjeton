@@ -81,7 +81,17 @@ Deno.serve(async (req) => {
 
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    // Un abonnement encore actif est prolongé, pas remplacé : les jours déjà
+    // payés ne sont pas perdus.
+    const { data: currentSub } = await admin
+      .from('subscriptions')
+      .select('status, expires_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const currentEnd = currentSub?.status === 'active' && currentSub.expires_at
+      ? new Date(currentSub.expires_at).getTime()
+      : 0;
+    const expiresAt = new Date(Math.max(now.getTime(), currentEnd) + 30 * 24 * 60 * 60 * 1000);
     const graceUntil = new Date(expiresAt.getTime() + 3 * 24 * 60 * 60 * 1000);
     const plan = String(row.plan || 'pro');
     const planName = plan === 'ultra' ? 'Ultra Pro' : 'Pro';

@@ -1,4 +1,4 @@
-// Quotas mensuels du plan gratuit.
+// Quotas mensuels par plan (gratuit, Pro, Ultra Pro).
 //
 // La source de vérité est la base de données : la fonction SQL consume_feature
 // décompte un crédit et refuse au-delà de la limite, et des déclencheurs
@@ -9,6 +9,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type FreeFeature =
+  | "manual_expense"
   | "scan"
   | "chat"
   | "voice"
@@ -22,9 +23,12 @@ export interface FeatureQuota {
   used: number;
   limit: number | null;
   resetsAt: string | null;
+  /** Plan qui a fixé la limite : free | pro | ultra (absent sur l'ancienne base). */
+  plan?: string;
 }
 
 const LABELS: Record<FreeFeature, string> = {
+  manual_expense: "dépenses saisies à la main",
   scan: "scans de reçus",
   chat: "messages à l'assistant",
   voice: "dictées vocales",
@@ -62,6 +66,7 @@ export async function consumeFeature(
     used: Number(r.used ?? 0),
     limit: r.limit == null ? null : Number(r.limit),
     resetsAt: (r.resets_at as string) ?? null,
+    plan: typeof r.plan === "string" ? r.plan : undefined,
   };
 }
 
@@ -100,6 +105,28 @@ export function isFreePlanLimitError(error: unknown): boolean {
   return message.includes("free_plan_limit_reached");
 }
 
+/**
+ * Quota joint par la base à son refus (champ `details` de l'erreur), pour
+ * afficher la bonne limite et le bon plan dans le message.
+ */
+export function quotaFromLimitError(error: unknown): FeatureQuota | undefined {
+  const details = (error as { details?: string })?.details;
+  if (!details) return undefined;
+  try {
+    const r = JSON.parse(details) as Record<string, unknown>;
+    return {
+      allowed: false,
+      unlimited: false,
+      used: Number(r.used ?? 0),
+      limit: r.limit == null ? null : Number(r.limit),
+      resetsAt: (r.resets_at as string) ?? null,
+      plan: typeof r.plan === "string" ? r.plan : undefined,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 /** Date de remise à zéro, formatée en français (« 1 octobre »). */
 export function formatResetDate(resetsAt: string | null): string {
   if (!resetsAt) return "le 1er du mois prochain";
@@ -112,10 +139,21 @@ export function formatResetDate(resetsAt: string | null): string {
 
 /** Message à afficher quand la limite est atteinte. */
 export function limitReachedMessage(feature: FreeFeature, quota?: FeatureQuota) {
-  const reset = formatResetDate(quota?.resetsAt ?? null);
+  const reset = quota?.resetsAt
+    ? `le ${formatResetDate(quota.resetsAt).replace(/^1 /, "1er ")}`
+    : formatResetDate(null);
+  if (quota?.plan === "pro") {
+    return {
+      title: "Limite du plan Pro atteinte",
+      description: `Tu as utilisé tes ${quota.limit ?? ""} ${featureLabel(feature)} de ce mois. Le compteur repart ${reset} — ou passe à Ultra Pro pour continuer sans limite.`.replace(
+        /\s+/g,
+        " "
+      ),
+    };
+  }
   return {
     title: "Limite du plan gratuit atteinte",
-    description: `Tu as utilisé tes ${quota?.limit ?? ""} ${featureLabel(feature)} de ce mois. Le compteur repart ${reset} — ou passe au Pro pour continuer sans limite.`.replace(
+    description: `Tu as utilisé tes ${quota?.limit ?? ""} ${featureLabel(feature)} de ce mois. Le compteur repart ${reset} — ou passe au Pro pour continuer.`.replace(
       /\s+/g,
       " "
     ),

@@ -200,6 +200,7 @@ const Wallets = () => {
           note: `Transfert vers ${toWallet.wallet_name}`,
           wallet_id: fromWalletId,
           category_id: transferCatId,
+          source: "transfer",
         },
         {
           user_id: user.id,
@@ -209,6 +210,7 @@ const Wallets = () => {
           note: `Transfert depuis ${fromWallet.wallet_name}`,
           wallet_id: toWalletId,
           category_id: transferCatId,
+          source: "transfer",
         },
       ]);
 
