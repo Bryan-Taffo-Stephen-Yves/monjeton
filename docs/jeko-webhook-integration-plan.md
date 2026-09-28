@@ -1,5 +1,7 @@
 # Plan — Intégration du webhook Jèko (via MCP Jèko)
 
+> **Mise à jour :** le job `jeko-reconcile` décrit plus bas a été retiré avant la mise en ligne. Entre-temps, `main` a fait évoluer le webhook (référence = user_id, paiements invités, table `payments`), et le job reprenait l'ancienne logique. Il reste dans l'historique git (commit 950c14a) et devra être réaligné sur le webhook actuel avant d'être réintroduit.
+
 ## Contexte / problème
 
 Un utilisateur peut payer son abonnement (Pro / Ultra Pro) via les liens de paiement Jèko, mais l'accès aux fonctionnalités pro n'est pas activé automatiquement. Actuellement l'activation dépend entièrement de la fonction Supabase `jeko-webhook`, qui n'est jamais (ou pas fiablement) appelée par Jèko. Résultat : activation manuelle nécessaire à chaque paiement.

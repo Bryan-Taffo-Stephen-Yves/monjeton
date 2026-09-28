@@ -30,9 +30,6 @@ verify_jwt = false
 [functions.jeko-webhook]
 verify_jwt = false
 
-[functions.jeko-reconcile]
-verify_jwt = false
-
 [functions.subscription-reminders]
 verify_jwt = false
 
