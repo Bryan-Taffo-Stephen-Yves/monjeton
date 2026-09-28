@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Check } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Check, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { openJekoPro, openJekoMax } from "@/lib/jeko";
@@ -57,6 +57,17 @@ const Pricing = () => {
   const isPro = currentPlan === "Pro";
   const isUltra = currentPlan === "Ultra Pro";
 
+  // Jèko renvoie ici (errorUrl) quand le paiement échoue ou est annulé.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [paymentFailed, setPaymentFailed] = useState(false);
+  useEffect(() => {
+    if (searchParams.get("payment") !== "error") return;
+    setPaymentFailed(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("payment");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   if (isIOSNative()) {
     return (
       <div className="min-h-screen gradient-bg flex flex-col">
@@ -101,6 +112,21 @@ const Pricing = () => {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-4xl"
         >
+          {paymentFailed && (
+            <div role="alert" className="mb-6 flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/10 p-4">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-foreground">Le paiement n'a pas abouti</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tu peux réessayer ci-dessous, avec le même moyen de paiement ou un autre. Si ton compte a quand même été débité, ton plan s'activera tout seul d'ici quelques minutes.
+                </p>
+              </div>
+              <button type="button" aria-label="Fermer" onClick={() => setPaymentFailed(false)} className="shrink-0 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">Choisis ton plan</h1>
             <p className="text-muted-foreground">Paiement sécurisé via Jèko · Annule quand tu veux</p>

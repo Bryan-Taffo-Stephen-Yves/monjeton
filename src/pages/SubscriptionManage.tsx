@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { openJekoPro, openJekoMax } from "@/lib/jeko";
+import { fetchMonthlyUsage, type FeatureQuota } from "@/lib/freePlan";
 import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { isIOSNative } from "@/lib/platform";
 
@@ -33,6 +34,7 @@ type Subscription = {
   price_xof: number | null;
   updated_at: string;
   created_at: string;
+  expires_at: string | null;
 };
 
 type JekoPayment = {
@@ -42,6 +44,9 @@ type JekoPayment = {
   phone: string | null;
   created_at: string;
 };
+
+// Repli si la base ne répond pas : free_limit('chat') en base.
+const FREE_CHAT_LIMIT = 10;
 
 const PLAN_SCAN_LIMITS: Record<PlanName, number> = {
   Gratuit: 5,
@@ -163,6 +168,12 @@ const SubscriptionManage = () => {
   const [scansThisMonth, setScansThisMonth] = useState(0);
   const [aiMsgsThisMonth, setAiMsgsThisMonth] = useState(0);
   const [showCompare, setShowCompare] = useState(false);
+  const [usage, setUsage] = useState<Record<string, FeatureQuota> | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchMonthlyUsage(user.id).then(setUsage).catch(() => setUsage(null));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -172,7 +183,7 @@ const SubscriptionManage = () => {
       const [subRes, payRes, scansRes, msgsRes] = await Promise.allSettled([
         supabase
           .from("subscriptions")
-          .select("status, plan_name, price_xof, updated_at, created_at")
+          .select("status, plan_name, price_xof, updated_at, created_at, expires_at")
           .eq("user_id", user.id)
           .eq("status", "active")
           .maybeSingle(),
@@ -212,7 +223,21 @@ const SubscriptionManage = () => {
   const isPro = plan === "Pro";
   const isFree = !isActive;
   const scanLimit = PLAN_SCAN_LIMITS[plan];
-  const renewalDate = sub?.updated_at ? nextRenewal(sub.updated_at) : null;
+  // La vraie échéance ; updated_at bouge à chaque rappel et ne convient pas.
+  const renewalDate = sub?.expires_at
+    ? new Date(sub.expires_at)
+    : sub?.updated_at
+      ? nextRenewal(sub.updated_at)
+      : null;
+
+  // Plan gratuit : compteurs et limites de la base (même source que le Scan
+  // et l'Assistant), sinon repli sur un comptage des lignes.
+  const freeScan = isFree ? usage?.scan : undefined;
+  const freeChat = isFree ? usage?.chat : undefined;
+  const scanUsed = freeScan ? freeScan.used : scansThisMonth;
+  const scanShownLimit = freeScan ? (freeScan.limit ?? Infinity) : scanLimit;
+  const chatUsed = freeChat ? freeChat.used : aiMsgsThisMonth;
+  const chatLimit = isFree ? (freeChat?.limit ?? FREE_CHAT_LIMIT) : Infinity;
   const iosHide = isIOSNative();
   const lastPayment = payments[0];
 
@@ -394,21 +419,21 @@ const SubscriptionManage = () => {
               <UsageBar
                 icon={Camera}
                 label="Scans OCR"
-                current={scansThisMonth}
-                limit={scanLimit}
+                current={scanUsed}
+                limit={scanShownLimit}
               />
               <UsageBar
                 icon={MessageCircle}
                 label="Messages Assistant IA"
-                current={aiMsgsThisMonth}
-                limit={Infinity}
+                current={chatUsed}
+                limit={chatLimit}
               />
-              {isFree && scansThisMonth >= scanLimit && !iosHide && (
+              {isFree && scanUsed >= scanShownLimit && !iosHide && (
                 <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-3 border border-destructive/30">
                   Tu as atteint la limite de scans gratuits ce mois. Passe à Pro pour continuer.
                 </div>
               )}
-              {isFree && scansThisMonth >= scanLimit && iosHide && (
+              {isFree && scanUsed >= scanShownLimit && iosHide && (
                 <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-3 border border-destructive/30">
                   Tu as atteint la limite de scans gratuits ce mois.
                 </div>
