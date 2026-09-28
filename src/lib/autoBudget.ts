@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
  * Auto-ajustement du budget d'une catégorie en fonction des dépenses réelles.
  * Règle : nouveau_budget = max(budget_actuel, dépensé_ce_mois × (jours_mois / jours_écoulés) × 1.10)
  * - On ne baisse JAMAIS un budget existant.
+ * - Si le budget du mois a été défini (ligne dans `budgets`), on ne relève
+ *   pas non plus les postes existants : on crée seulement ceux qui manquent.
  * - Si pas d'historique, fallback sur dépensé × 1.20.
  */
 export async function syncAutoBudget(
@@ -48,6 +50,22 @@ export async function syncAutoBudget(
     .maybeSingle();
 
   const currentBudget = Number(existing?.budget_amount || 0);
+
+  // Si l'utilisateur a défini son budget du mois, ses montants sont des
+  // plafonds : on ne les relève jamais, sinon un poste dépassé serait
+  // « rattrapé » au lieu d'être signalé. On crée seulement les postes absents.
+  if (existing) {
+    const { data: monthBudget } = await supabase
+      .from("budgets")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("month", month)
+      .eq("year", year)
+      .maybeSingle();
+    if (monthBudget) {
+      return { created: false, updated: false, amount: currentBudget };
+    }
+  }
 
   // Détermination de la cible
   const now = new Date();

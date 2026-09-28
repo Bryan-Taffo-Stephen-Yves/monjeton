@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
-import { openJekoPro } from "@/lib/jeko";
-import { isIOSNative } from "@/lib/platform";
 import { motion } from "framer-motion";
 import { ChevronRight, Camera, Upload, Receipt, ScanLine } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { compressReceipt, fileToBase64 } from "@/lib/imageCompression";
-import { consumeFeature, fetchMonthlyUsage, limitReachedMessage, formatResetDate } from "@/lib/freePlan";
+import { consumeFeature, fetchMonthlyUsage, limitReachedMessage, formatResetDate, type FeatureQuota } from "@/lib/freePlan";
+import UpgradeSheet from "@/components/UpgradeSheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -63,8 +62,10 @@ const Scan = () => {
   const activeCurrency = useActiveCurrency();
   const [totalConfirmed, setTotalConfirmed] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
-  const [isPremium, setIsPremium] = useState(false);
+  // null = scans illimités (Ultra Pro, admin). Gratuit : 5 / mois, Pro : 30 / mois.
+  const [scanLimit, setScanLimit] = useState<number | null>(FREE_SCAN_LIMIT);
   const [scansRemaining, setScansRemaining] = useState(FREE_SCAN_LIMIT);
+  const [upgrade, setUpgrade] = useState<{ title: string; description: string; plan?: string } | null>(null);
   const [resetLabel, setResetLabel] = useState<string>("");
   const [history, setHistory] = useState<any[]>([]);
   const [scanResult, setScanResult] = useState<ParsedResult | null>(null);
@@ -105,14 +106,12 @@ const Scan = () => {
     if (!user) return;
     Promise.all([
       supabase.from("receipt_scans").select("parsed_amount, status").eq("user_id", user.id).eq("status", "confirmed"),
-      supabase.rpc("has_active_pro", { _user_id: user.id }),
       supabase.from("categories").select("id, name, type").eq("user_id", user.id),
       supabase.from("wallets").select("id, wallet_name").eq("user_id", user.id),
-    ]).then(([histRes, subRes, catRes, walRes]) => {
+    ]).then(([histRes, catRes, walRes]) => {
       const confirmed = histRes.data || [];
       setTotalConfirmed(confirmed.length);
       setTotalAmount(confirmed.reduce((s: number, r: any) => s + (r.parsed_amount || 0), 0));
-      setIsPremium(subRes.data === true || isAdmin);
       setCategories(catRes.data || []);
       setWallets(walRes.data || []);
     });
@@ -121,7 +120,10 @@ const Scan = () => {
     // les données du navigateur. Le compteur local ne sert plus que de repli.
     fetchMonthlyUsage(user.id).then((usage) => {
       const scan = usage?.scan;
-      if (scan && scan.limit != null) {
+      if (isAdmin || (scan && scan.unlimited)) {
+        setScanLimit(null);
+      } else if (scan && scan.limit != null) {
+        setScanLimit(scan.limit);
         setScansRemaining(Math.max(0, scan.limit - scan.used));
         setResetLabel(formatResetDate(scan.resetsAt));
       } else {
@@ -130,19 +132,43 @@ const Scan = () => {
     });
   }, [user, fetchHistory, isAdmin]);
 
+  const limited = scanLimit != null;
+  const exhausted = limited && scansRemaining <= 0;
+
+  const showLimit = (quota?: FeatureQuota) => {
+    const msg = limitReachedMessage("scan", quota ?? {
+      allowed: false, unlimited: false, used: scanLimit ?? 0, limit: scanLimit, resetsAt: null,
+      plan: scanLimit === FREE_SCAN_LIMIT ? "free" : "pro",
+    });
+    setUpgrade({ ...msg, plan: quota?.plan ?? (scanLimit === FREE_SCAN_LIMIT ? "free" : "pro") });
+  };
+
+  // Limite atteinte : on explique et on propose le plan supérieur au lieu
+  // d'un bouton grisé sans explication.
+  const pickImage = (input: HTMLInputElement | null) => {
+    if (exhausted) {
+      showLimit();
+      return;
+    }
+    input?.click();
+  };
+
   const scanImage = async (file: File) => {
     if (!user) return;
 
-    if (!isPremium) {
-      // Décompte côté serveur : c'est lui qui fait foi.
+    // Décompte côté serveur, avant l'appel à l'IA : c'est lui qui fait foi.
+    // Il s'applique à tous les plans (gratuit 5, Pro 30, Ultra Pro illimité).
+    if (!isAdmin) {
       const quota = await consumeFeature(user.id, "scan");
-      if (quota.limit != null) {
+      if (quota.unlimited) {
+        setScanLimit(null);
+      } else if (quota.limit != null) {
+        setScanLimit(quota.limit);
         setScansRemaining(Math.max(0, quota.limit - quota.used));
         setResetLabel(formatResetDate(quota.resetsAt));
       }
       if (!quota.allowed) {
-        const msg = limitReachedMessage("scan", quota);
-        toast({ title: msg.title, description: msg.description, variant: "destructive" });
+        showLimit(quota);
         return;
       }
     }
@@ -321,6 +347,7 @@ const Scan = () => {
         note: data.merchant || 'Reçu scanné',
         category_id: catId,
         wallet_id: walletId,
+        source: 'scan',
       } as any);
 
       if (error) throw error;
@@ -387,8 +414,8 @@ const Scan = () => {
 
   return (
     <DashboardLayout title="Scan Intelligent">
-      {/* Free tier scan counter */}
-      {!isPremium && (
+      {/* Compteur de scans du mois (plans gratuit et Pro) */}
+      {limited && (
         <div className="glass-card rounded-xl p-3 mb-4 flex items-center justify-between">
           <span className="text-sm text-muted-foreground">
             {scansRemaining > 0
@@ -397,9 +424,9 @@ const Scan = () => {
                 ? `Limite atteinte — nouveaux scans le ${resetLabel}`
                 : "Limite de scans atteinte ce mois"}
           </span>
-          {scansRemaining <= 0 && !isIOSNative() && (
-            <Button onClick={() => openJekoPro()} size="sm" className="gradient-primary text-primary-foreground">
-              Passer à PRO
+          {scansRemaining <= 0 && (
+            <Button onClick={() => showLimit()} size="sm" className="gradient-primary text-primary-foreground">
+              {scanLimit === FREE_SCAN_LIMIT ? "Passer à Pro" : "Voir Ultra Pro"}
             </Button>
           )}
         </div>
@@ -439,7 +466,7 @@ const Scan = () => {
             capture="environment"
             onChange={handleFile}
             className="hidden"
-            disabled={scanning || (!isPremium && scansRemaining <= 0)}
+            disabled={scanning || exhausted}
           />
           <input
             ref={galleryRef}
@@ -447,7 +474,7 @@ const Scan = () => {
             accept="image/*"
             onChange={handleFile}
             className="hidden"
-            disabled={scanning || (!isPremium && scansRemaining <= 0)}
+            disabled={scanning || exhausted}
           />
 
           {scanning ? (
@@ -455,8 +482,7 @@ const Scan = () => {
           ) : (
             <div className="grid grid-cols-2 gap-3 w-full">
               <Button
-                onClick={() => cameraRef.current?.click()}
-                disabled={!isPremium && scansRemaining <= 0}
+                onClick={() => pickImage(cameraRef.current)}
                 className="w-full gradient-primary text-primary-foreground"
               >
                 <Camera className="w-4 h-4 mr-2" /> Photo
@@ -464,8 +490,7 @@ const Scan = () => {
               <Button
                 variant="outline"
                 className="w-full glass"
-                onClick={() => galleryRef.current?.click()}
-                disabled={!isPremium && scansRemaining <= 0}
+                onClick={() => pickImage(galleryRef.current)}
               >
                 <Upload className="w-4 h-4 mr-2" /> Galerie
               </Button>
@@ -495,6 +520,13 @@ const Scan = () => {
         </div>
         <ChevronRight className="w-4 h-4 text-muted-foreground" />
       </Link>
+      <UpgradeSheet
+        open={!!upgrade}
+        onOpenChange={(open) => !open && setUpgrade(null)}
+        title={upgrade?.title ?? ""}
+        description={upgrade?.description ?? ""}
+        currentPlan={upgrade?.plan}
+      />
     </DashboardLayout>
   );
 };

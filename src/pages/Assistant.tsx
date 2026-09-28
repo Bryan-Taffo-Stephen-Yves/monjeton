@@ -540,6 +540,15 @@ const Assistant = () => {
       setIsLoading(false);
       return;
     }
+    if (user) {
+      const voiceQuota = await consumeFeature(user.id, "voice");
+      if (!voiceQuota.allowed) {
+        const msg = limitReachedMessage("voice", voiceQuota);
+        toast({ title: msg.title, description: msg.description, variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
+    }
     setIsLoading(true);
     const audioUrl = URL.createObjectURL(audioBlob);
     const userMsg: Message = { role: "user", content: "Message vocal…", type: "audio", audioUrl };
@@ -591,6 +600,7 @@ const Assistant = () => {
         c.name.toLowerCase().includes(transaction.category.toLowerCase())
       );
       await supabase.from("transactions").insert({
+        source: "assistant",
         user_id: user.id,
         type: transaction.type === "income" ? "income" : "expense",
         amount: transaction.amount,
@@ -630,6 +640,7 @@ const Assistant = () => {
         }
         if (debt.debt_type === "owed_to_me" && debt.amount_paid && debt.amount_paid > 0) {
           await supabase.from("transactions").insert({
+            source: "assistant",
             user_id: user.id,
             type: "income",
             amount: debt.amount_paid,
@@ -659,6 +670,7 @@ const Assistant = () => {
 
         if (debt.amount_paid && debt.amount_paid > 0) {
           await supabase.from("transactions").insert({
+            source: "assistant",
             user_id: user.id,
             type: "income",
             amount: debt.amount_paid,

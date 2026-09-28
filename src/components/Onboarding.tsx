@@ -132,6 +132,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         date: new Date().toISOString().split("T")[0],
         category_id: cats?.id || null,
         wallet_id: createdWalletId,
+        source: "onboarding",
       });
 
       toast({ title: "Transaction enregistrée ✅" });
