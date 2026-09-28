@@ -14,6 +14,8 @@ import {
   Gauge,
   Camera,
   MessageCircle,
+  Mic,
+  PenLine,
   ArrowLeft,
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -45,39 +47,48 @@ type JekoPayment = {
   created_at: string;
 };
 
-// Repli si la base ne répond pas : free_limit('chat') en base.
+// Replis si la base ne répond pas. La source de vérité est plan_limit() en base.
 const FREE_CHAT_LIMIT = 10;
 
 const PLAN_SCAN_LIMITS: Record<PlanName, number> = {
   Gratuit: 5,
-  Pro: 50,
+  Pro: 30,
   "Ultra Pro": Infinity,
 };
 
+const PLAN_VOICE_LIMITS: Record<PlanName, number> = {
+  Gratuit: 5,
+  Pro: 30,
+  "Ultra Pro": Infinity,
+};
+
+const FREE_MANUAL_LIMIT = 15;
+
 const PLAN_FEATURES: Record<PlanName, string[]> = {
   Gratuit: [
-    "Transactions illimitées",
-    "5 scans OCR par mois",
-    "Assistant IA (limité)",
+    "15 dépenses saisies à la main par mois",
+    "5 scans IA et 5 saisies vocales par mois",
+    "Assistant IA (10 messages par mois)",
   ],
   Pro: [
-    "Transactions illimitées",
-    "Scan IA (50 / mois)",
-    "Assistant IA financier",
+    "Dépenses illimitées",
+    "Scan IA et saisie vocale (30 / mois chacun)",
+    "Assistant IA financier sans limite",
     "Rapports & exports PDF",
   ],
   "Ultra Pro": [
     "Tout ce qui est dans Pro",
-    "Scan IA illimité",
+    "Scan IA et saisie vocale illimités",
     "Support prioritaire",
     "Nouvelles features en avant-première",
   ],
 };
 
 const COMPARE_ROWS: { label: string; values: [string, string, string] }[] = [
-  { label: "Transactions", values: ["Illimité", "Illimité", "Illimité"] },
-  { label: "Scans OCR / mois", values: ["5", "50", "Illimité"] },
-  { label: "Assistant IA", values: ["Limité", "✓", "✓"] },
+  { label: "Dépenses saisies / mois", values: ["15", "Illimité", "Illimité"] },
+  { label: "Scans IA / mois", values: ["5", "30", "Illimité"] },
+  { label: "Saisies vocales / mois", values: ["5", "30", "Illimité"] },
+  { label: "Assistant IA / mois", values: ["10 messages", "Illimité", "Illimité"] },
   { label: "Rapports PDF", values: ["—", "✓", "✓"] },
   { label: "Support prioritaire", values: ["—", "—", "✓"] },
   { label: "Avant-premières", values: ["—", "—", "✓"] },
@@ -222,7 +233,6 @@ const SubscriptionManage = () => {
   const isUltra = plan === "Ultra Pro";
   const isPro = plan === "Pro";
   const isFree = !isActive;
-  const scanLimit = PLAN_SCAN_LIMITS[plan];
   // La vraie échéance ; updated_at bouge à chaque rappel et ne convient pas.
   const renewalDate = sub?.expires_at
     ? new Date(sub.expires_at)
@@ -230,14 +240,22 @@ const SubscriptionManage = () => {
       ? nextRenewal(sub.updated_at)
       : null;
 
-  // Plan gratuit : compteurs et limites de la base (même source que le Scan
-  // et l'Assistant), sinon repli sur un comptage des lignes.
-  const freeScan = isFree ? usage?.scan : undefined;
-  const freeChat = isFree ? usage?.chat : undefined;
-  const scanUsed = freeScan ? freeScan.used : scansThisMonth;
-  const scanShownLimit = freeScan ? (freeScan.limit ?? Infinity) : scanLimit;
-  const chatUsed = freeChat ? freeChat.used : aiMsgsThisMonth;
-  const chatLimit = isFree ? (freeChat?.limit ?? FREE_CHAT_LIMIT) : Infinity;
+  // Compteurs et limites de la base (même source que le Scan, la saisie et
+  // l'Assistant), sinon repli sur les limites connues du plan.
+  const planKey: PlanName = isFree ? "Gratuit" : isUltra ? "Ultra Pro" : "Pro";
+  const dbLimit = (q: FeatureQuota | undefined, fallback: number) =>
+    q ? (q.unlimited || q.limit == null ? Infinity : q.limit) : fallback;
+  const scanUsed = usage?.scan ? usage.scan.used : scansThisMonth;
+  const scanShownLimit = dbLimit(usage?.scan, PLAN_SCAN_LIMITS[planKey]);
+  const voiceUsed = usage?.voice?.used ?? 0;
+  const voiceLimit = dbLimit(usage?.voice, PLAN_VOICE_LIMITS[planKey]);
+  const manualUsed = usage?.manual_expense?.used ?? 0;
+  const manualLimit = dbLimit(usage?.manual_expense, isFree ? FREE_MANUAL_LIMIT : Infinity);
+  const chatUsed = usage?.chat ? usage.chat.used : aiMsgsThisMonth;
+  const chatLimit = dbLimit(usage?.chat, isFree ? FREE_CHAT_LIMIT : Infinity);
+  const limitHit =
+    scanUsed >= scanShownLimit || voiceUsed >= voiceLimit ||
+    manualUsed >= manualLimit || chatUsed >= chatLimit;
   const iosHide = isIOSNative();
   const lastPayment = payments[0];
 
@@ -416,11 +434,25 @@ const SubscriptionManage = () => {
                 <Gauge className="w-4 h-4 text-primary" />
                 <h3 className="text-sm font-bold text-foreground">Usage ce mois-ci</h3>
               </div>
+              {isFinite(manualLimit) && (
+                <UsageBar
+                  icon={PenLine}
+                  label="Dépenses saisies à la main"
+                  current={manualUsed}
+                  limit={manualLimit}
+                />
+              )}
               <UsageBar
                 icon={Camera}
-                label="Scans OCR"
+                label="Scans IA"
                 current={scanUsed}
                 limit={scanShownLimit}
+              />
+              <UsageBar
+                icon={Mic}
+                label="Saisies vocales"
+                current={voiceUsed}
+                limit={voiceLimit}
               />
               <UsageBar
                 icon={MessageCircle}
@@ -428,14 +460,10 @@ const SubscriptionManage = () => {
                 current={chatUsed}
                 limit={chatLimit}
               />
-              {isFree && scanUsed >= scanShownLimit && !iosHide && (
+              {limitHit && !isUltra && (
                 <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-3 border border-destructive/30">
-                  Tu as atteint la limite de scans gratuits ce mois. Passe à Pro pour continuer.
-                </div>
-              )}
-              {isFree && scanUsed >= scanShownLimit && iosHide && (
-                <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-3 border border-destructive/30">
-                  Tu as atteint la limite de scans gratuits ce mois.
+                  Tu as atteint une limite de ton plan ce mois.
+                  {!iosHide && (isFree ? " Passe à Pro pour continuer." : " Passe à Ultra Pro pour ne plus avoir de limite.")}
                 </div>
               )}
             </motion.div>

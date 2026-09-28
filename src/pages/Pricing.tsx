@@ -11,19 +11,20 @@ import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { isIOSNative } from "@/lib/platform";
 
 const proFeatures = [
-  "Transactions illimitées",
-  "Scan IA des reçus (50 / mois)",
+  "Dépenses illimitées",
+  "Scan IA des reçus (30 / mois)",
+  "Saisie vocale (30 / mois)",
   "Multi-portefeuilles (Orange, MTN, Wave...)",
   "Rapports mensuels et annuels",
   "Export PDF",
-  "Assistant IA financier",
+  "Assistant IA financier sans limite",
   "Budgets & alertes",
   "Tontines & dettes",
 ];
 
 const maxFeatures = [
   "Tout le plan Pro",
-  "Scan IA illimité",
+  "Scan IA et saisie vocale illimités",
   "Support prioritaire",
   "Accès en avant-première aux nouvelles features",
 ];
@@ -81,8 +82,8 @@ const Pricing = () => {
           <div className="w-full max-w-md text-center space-y-5">
             <h1 className="text-3xl font-bold text-foreground">Mon Jeton Pro</h1>
             <p className="text-muted-foreground">
-              Avec Mon Jeton Pro, profite du scan illimité de tes reçus, de la saisie vocale de tes
-              dépenses, d'objectifs d'épargne illimités et de rapports détaillés pour mieux
+              Avec Mon Jeton Pro, profite de dépenses illimitées, du scan de tes reçus et de la
+              saisie vocale (30 par mois chacun), d'objectifs d'épargne illimités et de rapports détaillés pour mieux
               comprendre ton argent.
             </p>
             <p className="text-sm text-muted-foreground">

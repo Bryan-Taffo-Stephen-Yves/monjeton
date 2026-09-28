@@ -29,6 +29,11 @@ import { checkAndCreateNotifications } from "@/lib/notificationService";
 import { syncAutoBudget } from "@/lib/autoBudget";
 import { checkBudgetWhatsappAlerts } from "@/lib/budgetWhatsappAlerts";
 import { DatePickerField } from "@/components/ui/DatePickerField";
+import { UpgradeSheet } from "@/components/UpgradeSheet";
+import {
+  consumeFeature, fetchMonthlyUsage, isFreePlanLimitError, limitReachedMessage,
+  quotaFromLimitError, type FeatureQuota, type FreeFeature,
+} from "@/lib/freePlan";
 
 const NewTransaction = () => {
   const navigate = useNavigate();
@@ -67,6 +72,25 @@ const NewTransaction = () => {
   // Conversational AI states
   const [voiceTransactions, setVoiceTransactions] = useState<ParsedTransaction[] | null>(null);
   const [isSubmittingVoice, setIsSubmittingVoice] = useState(false);
+  const [usage, setUsage] = useState<Record<string, FeatureQuota> | null>(null);
+  const [upgrade, setUpgrade] = useState<{ title: string; description: string; plan?: string } | null>(null);
+
+  const refreshUsage = () => {
+    if (!user) return;
+    fetchMonthlyUsage(user.id).then(setUsage).catch(() => {});
+  };
+  useEffect(refreshUsage, [user]);
+
+  const showLimit = (feature: FreeFeature, quota?: FeatureQuota) => {
+    setUpgrade({ ...limitReachedMessage(feature, quota), plan: quota?.plan });
+  };
+  const isExhausted = (q?: FeatureQuota) =>
+    !!q && !q.unlimited && q.limit != null && q.used >= q.limit;
+  const manualQuota = usage?.manual_expense;
+  const manualLeft =
+    manualQuota && !manualQuota.unlimited && manualQuota.limit != null
+      ? Math.max(0, manualQuota.limit - manualQuota.used)
+      : null;
 
   useEffect(() => {
     if (!user) return;
@@ -158,6 +182,12 @@ const NewTransaction = () => {
   }, [isRecording, isPaused]);
 
   const startRecording = async () => {
+    // Quota vocal déjà épuisé : on le dit avant de faire parler l'utilisateur.
+    if (isExhausted(usage?.voice)) {
+      setVoiceSheetOpen(false);
+      showLimit("voice", usage?.voice);
+      return;
+    }
     try {
       setTranscriptText(null);
       setShowRetryVoice(false);
@@ -311,6 +341,13 @@ const NewTransaction = () => {
   const processVoice = async (audioBlob: Blob) => {
     setIsProcessing(true);
     try {
+      if (user) {
+        const quota = await consumeFeature(user.id, "voice");
+        if (!quota.allowed) {
+          showLimit("voice", quota);
+          return;
+        }
+      }
       const sttUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/speech-to-text`;
       const { data: { session } } = await supabase.auth.getSession();
       const formData = new FormData();
@@ -445,6 +482,7 @@ const NewTransaction = () => {
           converted_amount_xof: convertedAmountXof,
           exchange_rate_used: exchangeRateUsed,
           exchange_rate_source: exchangeRateSource,
+          source: "voice",
         });
       }
 
@@ -503,12 +541,17 @@ const NewTransaction = () => {
       date,
       category_id: categoryId,
       wallet_id: walletId || null,
+      source: "manual",
     });
 
     setLoading(false);
-    if (error) {
+    if (error && isFreePlanLimitError(error)) {
+      showLimit("manual_expense", quotaFromLimitError(error) ?? manualQuota);
+      refreshUsage();
+    } else if (error) {
       toast({ title: "Erreur", description: "Impossible d'enregistrer la transaction", variant: "destructive" });
     } else {
+      refreshUsage();
       toast({ title: "Transaction enregistrée" });
       checkAndCreateNotifications(user.id, type, categoryId, walletId || null);
       import("@/lib/petReminders").then((m) => m.rearmPetReminder()).catch(() => {});
@@ -649,6 +692,20 @@ const NewTransaction = () => {
             </button>
           </div>
 
+          {type === "expense" && manualLeft !== null && manualLeft <= 5 && (
+            <button
+              type="button"
+              onClick={() => showLimit("manual_expense", manualQuota)}
+              className={`mx-auto mb-2 rounded-full px-3 py-1.5 text-[11px] font-bold ${
+                manualLeft === 0 ? "bg-destructive/15 text-destructive" : "bg-accent/15 text-accent"
+              }`}
+            >
+              {manualLeft === 0
+                ? "Plus de saisie ce mois · Passer à Pro"
+                : `Il te reste ${manualLeft} saisie${manualLeft > 1 ? "s" : ""} ce mois · Passer à Pro`}
+            </button>
+          )}
+
           {/* flex flex-col min-h-0 est indispensable : sans ça, la chaîne
               de contraintes est rompue entre Screen.Content et le clavier,
               qui déborde alors sous le bouton au lieu de se comprimer. */}
@@ -782,6 +839,13 @@ const NewTransaction = () => {
           onSelect={setDate}
         />
       </Screen>
+      <UpgradeSheet
+        open={!!upgrade}
+        onOpenChange={(o) => { if (!o) setUpgrade(null); }}
+        title={upgrade?.title ?? ""}
+        description={upgrade?.description ?? ""}
+        currentPlan={upgrade?.plan}
+      />
     </DashboardLayout>
   );
 };

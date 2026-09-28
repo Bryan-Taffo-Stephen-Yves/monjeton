@@ -257,6 +257,7 @@ const Savings = () => {
           wallet_id: depositWalletId,
           note: `Épargne : ${goals.find(g => g.id === goalId)?.name}`,
           date: new Date().toISOString().split("T")[0],
+          source: "transfer",
         })
         .select("id")
         .single();
@@ -300,6 +301,7 @@ const Savings = () => {
         wallet_id: wallets[0].id,
         note: `Retrait épargne : ${goal.name}`,
         date: new Date().toISOString().split("T")[0],
+        source: "transfer",
       });
       if (txErr) throw txErr;
 
