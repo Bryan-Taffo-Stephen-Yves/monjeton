@@ -4,7 +4,7 @@ import { Sparkles, X, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { openJekoPro, openJekoMax } from "@/lib/jeko";
-import { isIOSNative } from "@/lib/platform";
+import { isStoreApp } from "@/lib/platform";
 
 interface SubInfo {
   status: string;
@@ -28,7 +28,7 @@ const SubscriptionRenewBanner = () => {
       .then(({ data }) => setSub(data as SubInfo | null));
   }, [user]);
 
-  if (isIOSNative()) return null;
+  if (isStoreApp()) return null;
   if (!sub || dismissed) return null;
   if (sub.status !== "active") return null;
   if (!sub.expires_at) return null;

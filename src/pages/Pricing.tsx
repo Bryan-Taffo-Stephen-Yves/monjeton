@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import logoImg from "@/assets/logo-monjeton.webp";
 import { useDocumentMeta } from "@/hooks/useDocumentMeta";
-import { isIOSNative } from "@/lib/platform";
+import { isStoreApp } from "@/lib/platform";
 
 const proFeatures = [
   "Dépenses illimitées",
@@ -69,7 +69,7 @@ const Pricing = () => {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  if (isIOSNative()) {
+  if (isStoreApp()) {
     return (
       <div className="min-h-screen gradient-bg flex flex-col">
         <header className="flex items-center justify-between px-5 py-4">
