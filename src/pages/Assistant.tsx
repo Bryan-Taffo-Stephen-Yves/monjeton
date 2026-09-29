@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { consumeFeature, isFreePlanLimitError, limitReachedMessage } from "@/lib/freePlan";
+import { isStoreApp } from "@/lib/platform";
 
 type Attachment = {
   name: string;
@@ -882,7 +883,9 @@ const Assistant = () => {
         if (left > 0 && left <= 3) {
           toast({
             title: `Encore ${left} message${left > 1 ? "s" : ""} ce mois`,
-            description: "Passe au Pro pour discuter sans limite avec l'assistant.",
+            description: isStoreApp()
+              ? "Le compteur repart le 1er du mois prochain."
+              : "Passe au Pro pour discuter sans limite avec l'assistant.",
           });
         }
       }

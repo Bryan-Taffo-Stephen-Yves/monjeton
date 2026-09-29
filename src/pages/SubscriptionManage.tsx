@@ -26,7 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { openJekoPro, openJekoMax } from "@/lib/jeko";
 import { fetchMonthlyUsage, type FeatureQuota } from "@/lib/freePlan";
 import { useDocumentMeta } from "@/hooks/useDocumentMeta";
-import { isIOSNative } from "@/lib/platform";
+import { isStoreApp } from "@/lib/platform";
 
 type PlanName = "Gratuit" | "Pro" | "Ultra Pro";
 
@@ -256,7 +256,7 @@ const SubscriptionManage = () => {
   const limitHit =
     scanUsed >= scanShownLimit || voiceUsed >= voiceLimit ||
     manualUsed >= manualLimit || chatUsed >= chatLimit;
-  const iosHide = isIOSNative();
+  const storeApp = isStoreApp();
   const lastPayment = payments[0];
 
   const planBadge = () => {
@@ -332,7 +332,7 @@ const SubscriptionManage = () => {
                     </p>
                   </div>
                 </div>
-                {!iosHide && (
+                {!storeApp && (
                   <div className="text-right">
                     <div className="text-2xl font-black text-foreground">
                       {isFree ? "0 F" : fmtXof(sub!.price_xof)}
@@ -351,7 +351,7 @@ const SubscriptionManage = () => {
                 ))}
               </ul>
 
-              {!iosHide && (
+              {!storeApp && (
                 <div className="space-y-2 pt-1">
                   {isFree && (
                     <>
@@ -463,7 +463,7 @@ const SubscriptionManage = () => {
               {limitHit && !isUltra && (
                 <div className="text-xs text-destructive bg-destructive/10 rounded-lg p-3 border border-destructive/30">
                   Tu as atteint une limite de ton plan ce mois.
-                  {!iosHide && (isFree ? " Passe à Pro pour continuer." : " Passe à Ultra Pro pour ne plus avoir de limite.")}
+                  {!storeApp && (isFree ? " Passe à Pro pour continuer." : " Passe à Ultra Pro pour ne plus avoir de limite.")}
                 </div>
               )}
             </motion.div>
@@ -530,7 +530,7 @@ const SubscriptionManage = () => {
                     ])}
                   </div>
 
-                  {!isUltra && !iosHide && (
+                  {!isUltra && !storeApp && (
                     <div className="mt-4 flex gap-2">
                       {isFree && (
                         <Button onClick={openJekoPro} variant="hero" size="sm" className="flex-1">
@@ -551,7 +551,7 @@ const SubscriptionManage = () => {
             </motion.div>
 
             {/* Historique paiements */}
-            {!iosHide && (
+            {!storeApp && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -598,7 +598,7 @@ const SubscriptionManage = () => {
             )}
 
             {/* Support */}
-            {!iosHide && (
+            {!storeApp && (
               <a
                 href="mailto:support@monjeton.app?subject=Probl%C3%A8me%20de%20paiement%20J%C3%A8ko"
                 className="flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors py-2"

@@ -2,7 +2,7 @@ import { Crown, Infinity as InfinityIcon, Camera, Mic, MessageCircle, Sparkles }
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { openJekoMax, openJekoPro } from "@/lib/jeko";
-import { isIOSNative } from "@/lib/platform";
+import { isStoreApp } from "@/lib/platform";
 
 /**
  * Fenêtre affichée quand une limite du mois est atteinte : c'est le moment
@@ -42,8 +42,8 @@ export function UpgradeSheet({
   const perks = toUltra ? ULTRA_PERKS : PRO_PERKS;
   const price = toUltra ? 5000 : 2000;
   const planLabel = toUltra ? "Ultra Pro" : "Pro";
-  // Sur l'app iOS, Apple interdit de proposer un paiement externe.
-  const canPay = !isIOSNative();
+  // Dans l'app installée (App Store, Google Play), aucun paiement externe.
+  const canPay = !isStoreApp();
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -69,12 +69,14 @@ export function UpgradeSheet({
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-sm text-muted-foreground">
-              <span className="text-2xl font-extrabold text-foreground tabular-nums">{price.toLocaleString("fr-FR")} F</span> / mois
-              <span className="block text-xs mt-0.5">
-                soit moins de {Math.ceil(price / 30)} F par jour
-              </span>
-            </p>
+            {canPay && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                <span className="text-2xl font-extrabold text-foreground tabular-nums">{price.toLocaleString("fr-FR")} F</span> / mois
+                <span className="block text-xs mt-0.5">
+                  soit moins de {Math.ceil(price / 30)} F par jour
+                </span>
+              </p>
+            )}
           </div>
 
           {canPay && (

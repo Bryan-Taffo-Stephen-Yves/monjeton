@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { validateAmount, sanitizeNote, validatePayloadSize, MAX_AUDIO_SIZE_BYTES } from "@/lib/security";
 import { checkAndCreateNotifications } from "@/lib/notificationService";
+import { isStoreApp } from "@/lib/platform";
 import { syncAutoBudget } from "@/lib/autoBudget";
 import { checkBudgetWhatsappAlerts } from "@/lib/budgetWhatsappAlerts";
 import { DatePickerField } from "@/components/ui/DatePickerField";
@@ -701,8 +702,9 @@ const NewTransaction = () => {
               }`}
             >
               {manualLeft === 0
-                ? "Plus de saisie ce mois · Passer à Pro"
-                : `Il te reste ${manualLeft} saisie${manualLeft > 1 ? "s" : ""} ce mois · Passer à Pro`}
+                ? "Plus de saisie ce mois"
+                : `Il te reste ${manualLeft} saisie${manualLeft > 1 ? "s" : ""} ce mois`}
+              {!isStoreApp() && " · Passer à Pro"}
             </button>
           )}
 
