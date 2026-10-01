@@ -10,7 +10,7 @@ import { checkRateLimit, resetRateLimit, sanitizeText, validatePasswordStrength 
 import { checkAuthMethod, methodMismatchMessage } from "@/lib/auth-helpers";
 import { authLinkBase, isNativeShell, markWelcomeCompleted } from "@/lib/appEntry";
 import { Back, Brand, EntryLoader, EntryShell, Primary } from "@/components/entry/EntryParts";
-import auchanPhoto from "@/assets/entry/abidjan-auchan.webp";
+import supermarchePhoto from "@/assets/entry/abidjan-supermarche.webp";
 import googleLogo from "@/assets/entry/google.svg";
 
 /**
@@ -327,7 +327,7 @@ const AppAuth = ({ mode }: { mode: Mode }) => {
         {!login && (
           <div className="auth-human">
             <div className="human-crop">
-              <img src={auchanPhoto} alt="" />
+              <img src={supermarchePhoto} alt="" />
             </div>
             <div>
               <span>

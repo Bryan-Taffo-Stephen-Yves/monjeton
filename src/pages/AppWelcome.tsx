@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { hasCompletedWelcome } from "@/lib/appEntry";
 import { Back, Brand, EntryLoader, EntryShell, Primary } from "@/components/entry/EntryParts";
-import auchanPhoto from "@/assets/entry/abidjan-auchan.webp";
+import supermarchePhoto from "@/assets/entry/abidjan-supermarche.webp";
 import angrePhoto from "@/assets/entry/abidjan-angre.webp";
 import golfPhoto from "@/assets/entry/abidjan-golf.webp";
 
@@ -17,8 +17,8 @@ import golfPhoto from "@/assets/entry/abidjan-golf.webp";
 
 const STORIES = [
   {
-    photo: auchanPhoto,
-    place: "AUCHAN · ABIDJAN",
+    photo: supermarchePhoto,
+    place: "SUPERMARCHÉ · ABIDJAN",
     alt: "Une maman photographie son reçu à la caisse d'un supermarché à Abidjan.",
     eyebrow: "SCAN IA + BUDGET DU MOIS",
     title: "Tes courses notées.",
