@@ -11,9 +11,13 @@ import PinLockScreen from "@/components/PinLockScreen";
 import CurrencyRateLoader from "@/components/CurrencyRateLoader";
 import ProCelebrationModal from "@/components/ProCelebrationModal";
 import NotFound from "./pages/NotFound";
+import { isAppExperience } from "@/lib/appEntry";
 
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
+// Écrans d'entrée de l'application mobile (App Store / Play Store)
+const AppWelcome = lazy(() => import("./pages/AppWelcome"));
+const AppAuth = lazy(() => import("./pages/AppAuth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Pricing = lazy(() => import("./pages/Pricing"));
@@ -75,8 +79,9 @@ const InnerRoutes = () => {
       <ProCelebrationModal />
       <Routes>
         <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/bienvenue" element={isAppExperience() ? <AppWelcome /> : <Navigate to="/" replace />} />
+        <Route path="/login" element={isAppExperience() ? <AppAuth mode="login" /> : <Login />} />
+        <Route path="/signup" element={isAppExperience() ? <AppAuth mode="signup" /> : <Signup />} />
         <Route path="/pricing" element={<Pricing />} />
         {/* Ancienne page de paiement : le paiement se fait désormais dans la modale des tarifs */}
         <Route path="/subscribe" element={<Navigate to="/pricing" replace />} />

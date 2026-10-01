@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { CountryProvider } from "@/contexts/CountryContext";
 import { AppLangProvider } from "@/lib/appTranslation";
@@ -13,6 +13,7 @@ import { lazy, Suspense } from "react";
 
 // Landing eager for instant first paint on "/"
 import Landing from "./pages/Landing";
+import { isAppExperience } from "@/lib/appEntry";
 
 // Everything that touches Supabase / auth is behind this split
 const PrivateApp = lazy(() => import("./PrivateApp"));
@@ -65,7 +66,8 @@ const App = () => (
               <BrowserRouter>
                 <CountryProvider>
                   <Routes>
-                    <Route path="/" element={<Landing />} />
+                    {/* Navigateur : landing publique. Application installée : écrans de bienvenue. */}
+                    <Route path="/" element={isAppExperience() ? <Navigate to="/bienvenue" replace /> : <Landing />} />
                     <Route
                       path="/privacy"
                       element={

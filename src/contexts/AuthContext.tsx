@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode, useC
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { initSessionMonitor } from "@/lib/security";
+import { authLinkBase } from "@/lib/appEntry";
 import { setActiveCurrency } from "@/lib/currencyStore";
 import type { CurrencyCode } from "@/lib/currency";
 
@@ -92,7 +93,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
+        // Dans l'app installée, origin vaut https://localhost : lien vers le site public.
+        emailRedirectTo: authLinkBase(),
       },
     });
     return { error };
