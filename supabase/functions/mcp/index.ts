@@ -10,6 +10,10 @@ import { z } from "npm:zod@^3.25.76";
 
 // src/lib/mcp/supabase.ts
 import { createClient } from "npm:@supabase/supabase-js@^2.95.3";
+type RuntimeGlobals = typeof globalThis & {
+  Deno?: { env?: { get?: (name: string) => string | undefined } };
+  process?: { env?: Record<string, string | undefined> };
+};
 function runtimeEnv(name: string): string | undefined {
   const runtime = globalThis as RuntimeGlobals;
   return runtime.Deno?.env?.get?.(name) ?? runtime.process?.env?.[name];
