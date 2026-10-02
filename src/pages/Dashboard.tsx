@@ -906,7 +906,7 @@ const Dashboard = () => {
                       </motion.span>
                     )}
                   </div>
-                  <Link to="/transactions" className="text-xs font-semibold text-primary">{transactions.length > 0 ? `${transactions.length} ce mois` : "Voir tout"} →</Link>
+                  <Link to="/transactions" className="text-xs font-semibold text-primary">{transactions.length > 0 ? `${transactions.length} ${dateRange.label}` : "Voir tout"} →</Link>
                 </div>
                 <div className="space-y-2">
                   {recentTx.map((t, i) => (
