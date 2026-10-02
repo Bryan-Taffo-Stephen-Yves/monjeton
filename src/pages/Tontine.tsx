@@ -748,8 +748,9 @@ const TontinePage = () => {
   if (!selectedId) {
     return (
       <DashboardLayout title="Mes tontines">
-        {/* Halo ambiant */}
-        <div className="relative">
+        {/* Halo ambiant. overflow-x-clip : le halo (520 px) dépassait l'écran
+            et faisait glisser toute la page vers la gauche sur téléphone. */}
+        <div className="relative overflow-x-clip">
           <div
             aria-hidden
             className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[520px] h-[260px] opacity-60 motion-reduce:hidden"
