@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     const { context, disponible, month, year } = parsed.data;
 
     const ctx = await loadUserCurrency(supabase, user.id);
-    const systemPrompt = buildSystemPrompt(context, disponible, month, year, ctx);
+    const systemPrompt = buildSystemPrompt(context, disponible, month ?? new Date().getMonth() + 1, year ?? new Date().getFullYear(), ctx);
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
