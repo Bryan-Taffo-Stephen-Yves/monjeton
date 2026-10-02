@@ -432,6 +432,21 @@ const Scan = () => {
         </div>
       )}
 
+      {/* Import des Tendances Wave : la base du mois en une capture */}
+      {!scanResult && (
+        <Link
+          to="/import-wave"
+          className="glass-card rounded-xl p-3.5 mb-4 flex items-center gap-3 border border-primary/20 hover:border-primary/40 transition-colors"
+        >
+          <img src="/assets/pay/wave.svg" alt="" className="w-10 h-10 rounded-lg flex-shrink-0" />
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-bold text-foreground">Importer mes dépenses Wave du mois</span>
+            <span className="block text-xs text-muted-foreground">Une capture de « Tendances » suffit</span>
+          </span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        </Link>
+      )}
+
       {scanResult ? (
         <ScanResultCard
           result={scanResult}

@@ -37,6 +37,7 @@ const AdminPayments = lazy(() => import("./pages/AdminPayments"));
 const Budgets = lazy(() => import("./pages/Budgets"));
 const Tontine = lazy(() => import("./pages/Tontine"));
 const Scan = lazy(() => import("./pages/Scan"));
+const WaveImport = lazy(() => import("./pages/WaveImport"));
 const Install = lazy(() => import("./pages/Install"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const BRVMSimulator = lazy(() => import("./pages/BRVMSimulator"));
@@ -104,6 +105,7 @@ const InnerRoutes = () => {
         <Route path="/budgets" element={<PrivatePage title="Budgets — Mon Jeton" path="/budgets"><ProtectedRoute><OnboardingGuard><Budgets /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/tontine" element={<PrivatePage title="Tontines — Mon Jeton" path="/tontine"><ProtectedRoute><OnboardingGuard><Tontine /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/scan" element={<PrivatePage title="Scan intelligent — Mon Jeton" path="/scan"><ProtectedRoute><OnboardingGuard><Scan /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
+        <Route path="/import-wave" element={<PrivatePage title="Importer depuis Wave — Mon Jeton" path="/import-wave"><ProtectedRoute><OnboardingGuard><WaveImport /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/brvm" element={<PrivatePage title="BRVM — Mon Jeton" path="/brvm"><ProtectedRoute><OnboardingGuard><BRVMSimulator /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/receipts" element={<PrivatePage title="Reçus — Mon Jeton" path="/receipts"><ProtectedRoute><OnboardingGuard><Receipts /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/rejoindre-caisse/:token" element={<RejoindreCaisse />} />
