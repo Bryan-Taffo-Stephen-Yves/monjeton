@@ -11,9 +11,13 @@ import PinLockScreen from "@/components/PinLockScreen";
 import CurrencyRateLoader from "@/components/CurrencyRateLoader";
 import ProCelebrationModal from "@/components/ProCelebrationModal";
 import NotFound from "./pages/NotFound";
+import { isAppExperience } from "@/lib/appEntry";
 
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
+// Écrans d'entrée de l'application mobile (App Store / Play Store)
+const AppWelcome = lazy(() => import("./pages/AppWelcome"));
+const AppAuth = lazy(() => import("./pages/AppAuth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Pricing = lazy(() => import("./pages/Pricing"));
@@ -33,6 +37,7 @@ const AdminPayments = lazy(() => import("./pages/AdminPayments"));
 const Budgets = lazy(() => import("./pages/Budgets"));
 const Tontine = lazy(() => import("./pages/Tontine"));
 const Scan = lazy(() => import("./pages/Scan"));
+const WaveImport = lazy(() => import("./pages/WaveImport"));
 const Install = lazy(() => import("./pages/Install"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const BRVMSimulator = lazy(() => import("./pages/BRVMSimulator"));
@@ -75,8 +80,9 @@ const InnerRoutes = () => {
       <ProCelebrationModal />
       <Routes>
         <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/bienvenue" element={isAppExperience() ? <AppWelcome /> : <Navigate to="/" replace />} />
+        <Route path="/login" element={isAppExperience() ? <AppAuth mode="login" /> : <Login />} />
+        <Route path="/signup" element={isAppExperience() ? <AppAuth mode="signup" /> : <Signup />} />
         <Route path="/pricing" element={<Pricing />} />
         {/* Ancienne page de paiement : le paiement se fait désormais dans la modale des tarifs */}
         <Route path="/subscribe" element={<Navigate to="/pricing" replace />} />
@@ -99,6 +105,7 @@ const InnerRoutes = () => {
         <Route path="/budgets" element={<PrivatePage title="Budgets — Mon Jeton" path="/budgets"><ProtectedRoute><OnboardingGuard><Budgets /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/tontine" element={<PrivatePage title="Tontines — Mon Jeton" path="/tontine"><ProtectedRoute><OnboardingGuard><Tontine /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/scan" element={<PrivatePage title="Scan intelligent — Mon Jeton" path="/scan"><ProtectedRoute><OnboardingGuard><Scan /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
+        <Route path="/import-wave" element={<PrivatePage title="Importer depuis Wave — Mon Jeton" path="/import-wave"><ProtectedRoute><OnboardingGuard><WaveImport /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/brvm" element={<PrivatePage title="BRVM — Mon Jeton" path="/brvm"><ProtectedRoute><OnboardingGuard><BRVMSimulator /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/receipts" element={<PrivatePage title="Reçus — Mon Jeton" path="/receipts"><ProtectedRoute><OnboardingGuard><Receipts /></OnboardingGuard></ProtectedRoute></PrivatePage>} />
         <Route path="/rejoindre-caisse/:token" element={<RejoindreCaisse />} />

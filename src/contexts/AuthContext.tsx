@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode, useC
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { initSessionMonitor } from "@/lib/security";
+import { authLinkBase, isNativeShell } from "@/lib/appEntry";
 import { setActiveCurrency } from "@/lib/currencyStore";
 import type { CurrencyCode } from "@/lib/currency";
 
@@ -92,7 +93,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
+        // Dans l'app installée, origin vaut https://localhost : lien vers le site public.
+        emailRedirectTo: authLinkBase(),
       },
     });
     return { error };
@@ -120,9 +122,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile((prev: any) => (prev ? { ...prev, ...partial } : prev));
   }, []);
 
-  // Auto-logout on inactivity (30 min)
+  // Auto-logout on inactivity (30 min) — navigateur uniquement. Dans l'app
+  // installée, on resterait sinon renvoyé à l'écran de connexion à chaque
+  // retour dans l'app ; le code PIN (verrouillage) protège l'accès.
   useEffect(() => {
-    if (!user) return;
+    if (!user || isNativeShell()) return;
     const cleanup = initSessionMonitor(() => {
       signOut();
     });
