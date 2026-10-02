@@ -62,7 +62,8 @@ export async function checkRateLimit(
 
     const { error: insErr } = await admin
       .from('rate_limits')
-      .insert({ user_id: userId, endpoint });
+      // Types non générés côté fonctions : on largit le payload.
+      .insert({ user_id: userId, endpoint } as any);
     if (insErr) console.warn('[rate-limit] insert error', insErr.message);
 
     return {
