@@ -8,9 +8,16 @@ import { Capacitor } from "@capacitor/core";
  * publique. Une fois connecté, on va directement au tableau de bord : le
  * parcours de bienvenue n'est plus jamais montré.
  *
- * Aperçu dans un navigateur : ajouter ?app=1 à l'adresse (?app=0 pour en
- * sortir) affiche le parcours de l'application sans téléphone.
+ * INTERRUPTEUR : tant que APP_ENTRY_ENABLED vaut false, ce parcours est
+ * entièrement désactivé, y compris dans l'app installée. Tout le monde suit
+ * le parcours du site : landing → inscription → questionnaire → tableau de
+ * bord. On le passera à true au moment de la publication sur les stores.
+ *
+ * Aperçu pour les développeurs : en local (npm run dev), ?app=1 affiche le
+ * parcours de l'app même désactivé (?app=0 pour en sortir). Jamais en ligne.
  */
+
+export const APP_ENTRY_ENABLED = false;
 
 const PREVIEW_KEY = "mj_app_preview";
 const WELCOME_DONE_KEY = "mj_welcome_done";
@@ -27,9 +34,11 @@ export const isNativeShell = (): boolean => {
   }
 };
 
-/** Application installée, ou aperçu forcé avec ?app=1. */
+/** Application installée (parcours activé), ou aperçu local avec ?app=1. */
 export const isAppExperience = (): boolean => {
-  if (isNativeShell()) return true;
+  if (APP_ENTRY_ENABLED && isNativeShell()) return true;
+  // Aperçu : en ligne seulement une fois le parcours activé, toujours en local.
+  if (!APP_ENTRY_ENABLED && !import.meta.env.DEV) return false;
   try {
     const flag = new URLSearchParams(window.location.search).get("app");
     if (flag === "1") localStorage.setItem(PREVIEW_KEY, "1");
