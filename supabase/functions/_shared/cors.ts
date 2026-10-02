@@ -1,7 +1,7 @@
 /**
  * Restricted CORS for browser-facing edge functions.
  *
- * Do NOT use this for server-to-server webhooks (Chariow, Jèko) — those
+ * Do NOT use this for server-to-server webhooks (Jèko) — those
  * are called by external servers, not browsers, and rely on token/HMAC
  * validation for security, not on the CORS layer.
  *

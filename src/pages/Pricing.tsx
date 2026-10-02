@@ -102,8 +102,9 @@ const Pricing = () => {
           <img src={logoImg} alt="Mon Jeton" className="h-9 w-auto rounded-lg" />
           <span className="text-xl font-bold text-gradient">Mon Jeton</span>
         </Link>
-        <Link to="/login">
-          <Button variant="ghost" size="sm">Connexion</Button>
+        {/* Connecté : retour à l'app ; sinon : connexion. */}
+        <Link to={user ? "/dashboard" : "/login"}>
+          <Button variant="ghost" size="sm">{user ? "Mon tableau de bord" : "Connexion"}</Button>
         </Link>
       </header>
 
