@@ -245,14 +245,14 @@ Génère 5 à 7 suggestions de répartition en utilisant UNIQUEMENT les catégor
 
     const aiJson = await aiRes.json();
     const toolCall = aiJson.choices?.[0]?.message?.tool_calls?.[0];
-    let parsed: any = { suggestions: [], conseil_global: "" };
+    let aiParsed: any = { suggestions: [], conseil_global: "" };
     try {
-      parsed = JSON.parse(toolCall?.function?.arguments || "{}");
+      aiParsed = JSON.parse(toolCall?.function?.arguments || "{}");
     } catch (e) {
       console.error("Parse tool args failed:", e);
     }
 
-    let suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
+    let suggestions = Array.isArray(aiParsed.suggestions) ? aiParsed.suggestions : [];
     // Sanitize
     suggestions = suggestions
       .map((s: any) => ({
@@ -321,7 +321,7 @@ Génère 5 à 7 suggestions de répartition en utilisant UNIQUEMENT les catégor
     return new Response(
       JSON.stringify({
         suggestions,
-        conseil_global: String(parsed.conseil_global || "").slice(0, 500),
+        conseil_global: String(aiParsed.conseil_global || "").slice(0, 500),
         totalBudget,
         totalSpent,
         budgetRestant,
