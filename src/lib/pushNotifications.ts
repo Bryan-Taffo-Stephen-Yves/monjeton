@@ -132,3 +132,25 @@ export async function isDailyReminderActive(): Promise<boolean> {
   const sub = reg ? await reg.pushManager.getSubscription() : null;
   return !!sub;
 }
+
+/**
+ * Envoie une notification de test à tous les appareils abonnés de l'utilisateur.
+ * Elle arrive même si l'app est fermée : c'est le vrai test de bout en bout.
+ */
+export async function sendTestPush(): Promise<
+  { ok: true; sent: number } | { ok: false; error: string }
+> {
+  const { data, error } = await supabase.functions.invoke("send-test-push", { body: {} });
+  if (error) {
+    let code = "send_failed";
+    try {
+      const ctx = (error as { context?: Response }).context;
+      const body = ctx ? await ctx.json() : null;
+      if (body?.error) code = String(body.error);
+    } catch {
+      // Réponse illisible : on garde le code générique.
+    }
+    return { ok: false, error: code };
+  }
+  return { ok: true, sent: (data as { sent?: number })?.sent ?? 0 };
+}

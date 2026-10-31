@@ -20,27 +20,15 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
+      // Le manifest est dans public/manifest.webmanifest (une seule source).
+      manifest: false,
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-      },
-      manifest: {
-        name: "Mon Jeton",
-        short_name: "Mon Jeton",
-        description: "Tu vas voir clair dans ton jeton !",
-        theme_color: "#4a9a1e",
-        background_color: "#0a1a0d",
-        display: "standalone",
-        start_url: "/",
-        orientation: "portrait",
-        icons: [
-          { src: "/pwa-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/pwa-icon-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
-          { src: "/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-          { src: "/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-        ],
+        // Ajoute la gestion des notifications push au service worker /sw.js.
+        importScripts: ["/push-sw.js"],
       },
     }),
   ].filter(Boolean),

@@ -1,13 +1,9 @@
-// Service worker dédié aux notifications push quotidiennes de Mon Jeton.
-// Volontairement minimal : pas de cache d'app-shell, pas d'offline.
-
-self.addEventListener("install", () => {
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
-});
+// Gestion des notifications push de Mon Jeton.
+//
+// Ce fichier n'est PAS un service worker à part : il est chargé (importScripts)
+// par le service worker principal /sw.js que génère vite-plugin-pwa au build.
+// Avant, il s'appelait lui-même /sw.js et le build l'écrasait : les push
+// arrivaient sur le téléphone mais rien ne les affichait.
 
 self.addEventListener("push", (event) => {
   let payload = {};
@@ -20,8 +16,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Mon Jeton";
   const options = {
     body: payload.body || "N'oublie pas de noter tes dépenses du jour.",
-    icon: payload.icon || "/pwa-icon-192.svg",
-    badge: payload.badge || "/pwa-icon-192.svg",
+    icon: payload.icon || "/pwa-icon-192.png",
+    badge: payload.badge || "/notification-badge-96.png",
     data: { url: payload.url || "/new-transaction" },
     tag: payload.tag || "daily-reminder",
     renotify: true,

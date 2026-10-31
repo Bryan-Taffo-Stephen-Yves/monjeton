@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.activate-pro-token]
 verify_jwt = false
+
+[functions.send-test-push]
+verify_jwt = false
