@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import WalletIcon from '@/components/WalletIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { celebrateBabyFeeding, snapshotBabyBeforeSave } from '@/components/baby/celebrations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/MoneyInput';
@@ -87,6 +89,7 @@ export const MultiReceiptValidator = ({
   scanResult, imagePreview, storagePath, onClose, onValidated,
 }: Props) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [items, setItems] = useState<ValidatorItem[]>(() =>
     scanResult.transactions.map(tx => ({
@@ -185,6 +188,8 @@ export const MultiReceiptValidator = ({
   const handleValidate = async () => {
     if (!user || selectedCount === 0) return;
     setSaving(true);
+    // Bébé Jeton : état avant le repas, pour détecter un passage d'âge.
+    const babyBefore = snapshotBabyBeforeSave(queryClient, user.id);
     let successCount = 0;
     let failCount = 0;
 
@@ -230,10 +235,20 @@ export const MultiReceiptValidator = ({
     setSaving(false);
 
     if (successCount > 0) {
-      toast({
-        title: `${successCount} transaction(s) enregistrée(s)`,
-        description: failCount > 0 ? `${failCount} échec(s)` : 'Toutes sauvegardées avec succès',
-      });
+      const title = `${successCount} transaction(s) enregistrée(s)`;
+      const description = failCount > 0 ? `${failCount} échec(s)` : 'Toutes sauvegardées avec succès';
+      // Un seul repas pour tout le lot : le bébé confirme ; sans bébé, toast habituel.
+      void celebrateBabyFeeding({
+        queryClient,
+        userId: user.id,
+        before: babyBefore,
+        savedLabel: failCount > 0 ? `${title} · ${description}` : title,
+      })
+        .catch(() => false)
+        .then((celebrated) => {
+          if (!celebrated) toast({ title, description });
+        });
+      import('@/lib/petReminders').then((m) => m.rearmPetReminder()).catch(() => {});
       onValidated(successCount);
     } else {
       toast({ title: 'Aucune transaction sauvegardée', variant: 'destructive' });

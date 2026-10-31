@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Send, Bot, Loader2, Mic, MicOff, Paperclip, Volume2, VolumeX, X, FileText, LogOut, Trash2, Target, Users, MessageSquare, Plus, Pencil, Check, BarChart3, Sparkles, History, ArrowUp } from "lucide-react";
 import { BorderRotate } from "@/components/ui/animated-gradient-border";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { celebrateBabyFeeding, snapshotBabyBeforeSave } from "@/components/baby/celebrations";
 import { supabase } from "@/integrations/supabase/client";
 import { consumeFeature, isFreePlanLimitError, limitReachedMessage } from "@/lib/freePlan";
 import { isStoreApp } from "@/lib/platform";
@@ -172,6 +174,7 @@ const QUICK_ACTIONS = [
 const Assistant = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   /** Prénom pour la salutation. Repli silencieux si le profil est vide. */
   const firstName =
     (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] || "";
@@ -600,7 +603,9 @@ const Assistant = () => {
       const cat = cats?.find(c =>
         c.name.toLowerCase().includes(transaction.category.toLowerCase())
       );
-      await supabase.from("transactions").insert({
+      // Bébé Jeton : état avant le repas, pour détecter un passage d'âge.
+      const babyBefore = snapshotBabyBeforeSave(queryClient, user.id);
+      const { error } = await supabase.from("transactions").insert({
         source: "assistant",
         user_id: user.id,
         type: transaction.type === "income" ? "income" : "expense",
@@ -609,11 +614,19 @@ const Assistant = () => {
         date: transaction.date || today,
         category_id: cat?.id || null,
       });
+      // Échec : pas de « C'est noté » ni de repas pour le bébé.
+      if (error) throw error;
       const confirmText = `C'est noté : ${transaction.amount.toLocaleString()} enregistré.`;
       const confirmMsg: Message = { role: "assistant", content: confirmText, type: "text" };
       setMessages(prev => [...prev, confirmMsg]);
       await saveMessage("assistant", confirmMsg.content);
-      toast({ title: "Transaction enregistrée" });
+      // Le bébé confirme le repas (confettis s'il grandit) ; sans bébé, toast habituel.
+      void celebrateBabyFeeding({ queryClient, userId: user.id, before: babyBefore, savedLabel: "Transaction enregistrée" })
+        .catch(() => false)
+        .then((celebrated) => {
+          if (!celebrated) toast({ title: "Transaction enregistrée" });
+        });
+      import("@/lib/petReminders").then((m) => m.rearmPetReminder()).catch(() => {});
       speakText(confirmText);
     } catch {
       toast({ title: "Erreur d'enregistrement", variant: "destructive" });

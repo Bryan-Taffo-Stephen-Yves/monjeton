@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, ArrowUpRight, BusFront, Check, MapPin, Mic, ScanLine, Target, Utensils } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Baby, BusFront, Check, Heart, MapPin, Mic, ScanLine, Sprout, Target, Utensils } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDocumentMeta } from "@/hooks/useDocumentMeta";
 import { hasCompletedWelcome } from "@/lib/appEntry";
@@ -9,13 +9,28 @@ import supermarchePhoto from "@/assets/entry/abidjan-supermarche.webp";
 import angrePhoto from "@/assets/entry/abidjan-angre.webp";
 import golfPhoto from "@/assets/entry/abidjan-golf.webp";
 
+// Décor du 4ᵉ écran (bébé Jeton) : chargé seulement quand on s'en approche.
+const loadBabyStage = () => import("@/components/baby/BabyWelcomeStage");
+const BabyWelcomeStage = lazy(loadBabyStage);
+
 /**
- * Écrans de bienvenue de l'application mobile (3 slides).
+ * Écrans de bienvenue de l'application mobile (4 slides).
  * Montrés tant que la personne ne s'est jamais inscrite ni connectée sur
  * l'appareil. Les montants affichés sont des exemples, pas ses données.
  */
 
-const STORIES = [
+interface Story {
+  /** Photo d'Abidjan ; absente pour l'écran du bébé (fond dégradé). */
+  photo?: string;
+  place: string;
+  alt: string;
+  eyebrow: string;
+  title: string;
+  emphasis: string;
+  quote: string;
+}
+
+const STORIES: Story[] = [
   {
     photo: supermarchePhoto,
     place: "SUPERMARCHÉ · ABIDJAN",
@@ -42,6 +57,14 @@ const STORIES = [
     title: "Décembre se prépare.",
     emphasis: "À ton rythme.",
     quote: "« L'argent de poche est arrivé ! J'en garde pour décembre : tenues, copines et Assinie. »",
+  },
+  {
+    place: "TON COMPAGNON · NOUVEAU",
+    alt: "Deux bébés Jeton tout contents : une petite fille et un petit garçon.",
+    eyebrow: "BÉBÉ JETON",
+    title: "Ton bébé Jeton",
+    emphasis: "t'attend.",
+    quote: "« J'ai un petit creux… Note une dépense pour me nourrir ! 🍼 »",
   },
 ];
 
@@ -89,6 +112,25 @@ function StoryFeature({ index }: { index: number }) {
             </span>
           </div>
         </>
+      ) : index === 3 ? (
+        <>
+          <div className="feature-heading">
+            <Baby size={16} />
+            <strong>Kofi · Bébé</strong>
+            <span className="feature-status">
+              <Heart size={11} /> Ventre plein
+            </span>
+          </div>
+          <div className="budget-example">
+            <span>Il grandit quand tu notes tes dépenses</span>
+            <strong>
+              <Sprout size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> 12 <small>jours de repas</small>
+            </strong>
+          </div>
+          <div className="feature-progress" aria-hidden="true">
+            <span style={{ width: "85%" }} />
+          </div>
+        </>
       ) : (
         <>
           <div className="feature-heading">
@@ -123,8 +165,13 @@ const AppWelcome = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const requested = Number(params.get("slide"));
-  const [index, setIndex] = useState(requested >= 1 && requested <= 3 ? requested - 1 : 0);
+  const [index, setIndex] = useState(requested >= 1 && requested <= STORIES.length ? requested - 1 : 0);
   const touch = useRef<{ x: number; y: number } | null>(null);
+
+  // Le décor du bébé est téléchargé dès l'avant-dernier écran : pas d'attente.
+  useEffect(() => {
+    if (index >= STORIES.length - 2) loadBabyStage().catch(() => {});
+  }, [index]);
 
   if (loading) return <EntryLoader />;
   // Déjà connecté : le parcours de bienvenue est terminé.
@@ -159,7 +206,13 @@ const AppWelcome = () => {
         }}
       >
         <figure className="welcome-visual">
-          <img className="welcome-photo" src={story.photo} alt={story.alt} fetchPriority="high" />
+          {story.photo ? (
+            <img className="welcome-photo" src={story.photo} alt={story.alt} fetchPriority="high" />
+          ) : (
+            <Suspense fallback={<div className="baby-welcome-stage" role="img" aria-label={story.alt} />}>
+              <BabyWelcomeStage />
+            </Suspense>
+          )}
           <div className="photo-shade" />
           <div className="welcome-nav">
             {index > 0 ? <Back onClick={() => goSlide(index - 1)} /> : <Brand />}
@@ -168,7 +221,7 @@ const AppWelcome = () => {
             </button>
           </div>
           <span className="story-location">
-            <MapPin size={11} />
+            {story.photo ? <MapPin size={11} /> : <Heart size={11} />}
             {story.place}
           </span>
         </figure>
@@ -193,14 +246,14 @@ const AppWelcome = () => {
                   <button
                     key={item.place}
                     type="button"
-                    aria-label={`${item.place}, écran ${i + 1} sur 3`}
+                    aria-label={`${item.place}, écran ${i + 1} sur ${STORIES.length}`}
                     aria-current={index === i ? "step" : undefined}
                     onClick={() => goSlide(i)}
                   />
                 ))}
               </div>
               <span>
-                0{index + 1} <span className="slash">/</span> 03
+                0{index + 1} <span className="slash">/</span> 0{STORIES.length}
               </span>
             </div>
             <Primary onClick={() => (last ? navigate("/signup") : goSlide(index + 1))}>

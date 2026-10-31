@@ -15,9 +15,27 @@ import { Capacitor } from "@capacitor/core";
  *
  * Aperçu pour les développeurs : en local (npm run dev), ?app=1 affiche le
  * parcours de l'app même désactivé (?app=0 pour en sortir). Jamais en ligne.
+ *
+ * PWA : une fois Mon Jeton installé sur l'écran d'accueil (iPhone, Android,
+ * ordinateur), « / » peut suivre aussi le parcours de l'app : bienvenue →
+ * inscription ou connexion → tableau de bord. Une personne déjà connectée
+ * arrive directement sur le tableau de bord. Interrupteur : PWA_APP_ENTRY_ENABLED.
  */
 
 export const APP_ENTRY_ENABLED = false;
+
+/**
+ * Parcours de l'app pour la PWA installée sur l'écran d'accueil.
+ *
+ * ÉTEINT POUR L'INSTANT : dans ce parcours, /login et /signup ouvrent
+ * AppAuth, qui n'a pas encore de bouton « Continuer avec Apple ». Les
+ * comptes Apple ne pourraient plus se connecter dans la PWA (sur iPhone,
+ * l'app de l'écran d'accueil ne partage pas la session de Safari : tout le
+ * monde doit s'y reconnecter). On le passera à true dès qu'AppAuth proposera
+ * Apple hors de l'app native. En attendant, la PWA garde la landing et les
+ * pages web /login et /signup, comme avant.
+ */
+export const PWA_APP_ENTRY_ENABLED = false;
 
 const PREVIEW_KEY = "mj_app_preview";
 const WELCOME_DONE_KEY = "mj_welcome_done";
@@ -34,9 +52,25 @@ export const isNativeShell = (): boolean => {
   }
 };
 
-/** Application installée (parcours activé), ou aperçu local avec ?app=1. */
+/**
+ * PWA ouverte depuis l'écran d'accueil (fenêtre sans barre d'adresse).
+ * Faux dans un onglet de navigateur et dans l'app Capacitor.
+ */
+export const isStandalonePwa = (): boolean => {
+  if (typeof window === "undefined" || isNativeShell()) return false;
+  try {
+    const nav = window.navigator as Navigator & { standalone?: boolean };
+    return window.matchMedia?.("(display-mode: standalone)")?.matches === true || nav.standalone === true;
+  } catch {
+    return false;
+  }
+};
+
+/** Application installée (parcours activé), PWA installée, ou aperçu local avec ?app=1. */
 export const isAppExperience = (): boolean => {
   if (APP_ENTRY_ENABLED && isNativeShell()) return true;
+  // PWA installée (l'app Capacitor reste gouvernée par APP_ENTRY_ENABLED seul).
+  if (PWA_APP_ENTRY_ENABLED && isStandalonePwa()) return true;
   // Aperçu : en ligne seulement une fois le parcours activé, toujours en local.
   if (!APP_ENTRY_ENABLED && !import.meta.env.DEV) return false;
   try {
