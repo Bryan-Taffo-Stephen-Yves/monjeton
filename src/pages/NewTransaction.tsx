@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,12 +35,16 @@ import {
   consumeFeature, fetchMonthlyUsage, isFreePlanLimitError, limitReachedMessage,
   quotaFromLimitError, type FeatureQuota, type FreeFeature,
 } from "@/lib/freePlan";
+import type { BabyStatus } from "@/lib/baby";
+import { prefetchBabyStatus } from "@/components/baby/useBabyStatus";
+import { celebrateBabyFeeding, snapshotBabyBeforeSave } from "@/components/baby/celebrations";
 
 const NewTransaction = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [type, setType] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
   const [amountCaret, setAmountCaret] = useState(0);
@@ -80,6 +85,26 @@ const NewTransaction = () => {
     fetchMonthlyUsage(user.id).then(setUsage).catch(() => {});
   };
   useEffect(refreshUsage, [user]);
+
+  // Bébé Jeton : son état est chargé dès l'ouverture, pour savoir après
+  // l'enregistrement s'il vient de grandir (et afficher son image tout de suite).
+  useEffect(() => {
+    if (user) prefetchBabyStatus(queryClient, user.id).catch(() => {});
+  }, [user, queryClient]);
+
+  /**
+   * Confirme l'enregistrement. Si l'utilisateur a un bébé, c'est le bébé qui
+   * le confirme (« X s'est régalé 😋 », confettis s'il grandit) ; sinon le
+   * toast habituel. Une seule fois par enregistrement, sans bloquer la suite.
+   */
+  const announceSaved = (label: string, babyBefore: Promise<BabyStatus | null | undefined>) => {
+    if (!user) return;
+    celebrateBabyFeeding({ queryClient, userId: user.id, before: babyBefore, savedLabel: label })
+      .catch(() => false)
+      .then((celebrated) => {
+        if (!celebrated) toast({ title: label });
+      });
+  };
 
   const showLimit = (feature: FreeFeature, quota?: FeatureQuota) => {
     setUpgrade({ ...limitReachedMessage(feature, quota), plan: quota?.plan });
@@ -435,6 +460,7 @@ const NewTransaction = () => {
   const handleVoiceConfirm = async (transactions: ParsedTransaction[]) => {
     if (!user) return;
     setIsSubmittingVoice(true);
+    const babyBefore = snapshotBabyBeforeSave(queryClient, user.id);
 
     try {
       const today = new Date().toISOString().split("T")[0];
@@ -486,7 +512,10 @@ const NewTransaction = () => {
         });
       }
 
-      toast({ title: `${transactions.length} transaction${transactions.length > 1 ? "s" : ""} enregistrée${transactions.length > 1 ? "s" : ""}` });
+      announceSaved(
+        `${transactions.length} transaction${transactions.length > 1 ? "s" : ""} enregistrée${transactions.length > 1 ? "s" : ""}`,
+        babyBefore,
+      );
       import("@/lib/petReminders").then((m) => m.rearmPetReminder()).catch(() => {});
       const today2 = new Date();
       const m2 = today2.getMonth() + 1;
@@ -532,6 +561,7 @@ const NewTransaction = () => {
     }
 
     setLoading(true);
+    const babyBefore = snapshotBabyBeforeSave(queryClient, user.id);
 
     const { error } = await supabase.from("transactions").insert({
       user_id: user.id,
@@ -552,7 +582,7 @@ const NewTransaction = () => {
       toast({ title: "Erreur", description: "Impossible d'enregistrer la transaction", variant: "destructive" });
     } else {
       refreshUsage();
-      toast({ title: "Transaction enregistrée" });
+      announceSaved("Transaction enregistrée", babyBefore);
       checkAndCreateNotifications(user.id, type, categoryId, walletId || null);
       import("@/lib/petReminders").then((m) => m.rearmPetReminder()).catch(() => {});
       // Auto-ajustement budget catégorie (fire-and-forget)

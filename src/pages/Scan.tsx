@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ChevronRight, Camera, Upload, Receipt, ScanLine } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -10,6 +11,7 @@ import UpgradeSheet from "@/components/UpgradeSheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { celebrateBabyFeeding, snapshotBabyBeforeSave } from "@/components/baby/celebrations";
 
 import ScanResultCard, { type ParsedResult } from "@/components/scan/ScanResultCard";
 import { MultiReceiptValidator } from "@/components/scan/MultiReceiptValidator";
@@ -59,6 +61,7 @@ const incrementScanCount = () => {
 
 const Scan = () => {
   const { user, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
   const activeCurrency = useActiveCurrency();
   const [totalConfirmed, setTotalConfirmed] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
@@ -338,6 +341,8 @@ const Scan = () => {
       const amount = data.converted_amount_xof ?? data.amount ?? 0;
       const catId = findCategoryId(data.category, type);
       const walletId = findWalletId(data.wallet);
+      // Bébé Jeton : état avant le repas, pour détecter un passage d'âge.
+      const babyBefore = snapshotBabyBeforeSave(queryClient, user.id);
 
       const { error } = await supabase.from('transactions').insert({
         user_id: user.id,
@@ -364,7 +369,13 @@ const Scan = () => {
         storage_path: scanStoragePath,
       });
 
-      toast({ title: 'Transaction enregistrée' });
+      // Le bébé confirme le repas (confettis s'il grandit) ; sans bébé, toast habituel.
+      void celebrateBabyFeeding({ queryClient, userId: user.id, before: babyBefore, savedLabel: 'Transaction enregistrée' })
+        .catch(() => false)
+        .then((celebrated) => {
+          if (!celebrated) toast({ title: 'Transaction enregistrée' });
+        });
+      import('@/lib/petReminders').then((m) => m.rearmPetReminder()).catch(() => {});
       setScanResult(null);
       setImagePreview(null);
       setScanStoragePath(null);

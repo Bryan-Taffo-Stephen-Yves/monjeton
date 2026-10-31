@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import DailyReminderModal from "@/components/DailyReminderModal";
 import MonthlyBadge from "@/components/MonthlyBadge";
+import BabyCard from "@/components/baby/BabyCard";
 import { calculateMonthlyBadge, type Badge } from "@/lib/badgeCalculator";
 const trendModes = ["Jour", "Mois"];
 
@@ -78,6 +79,11 @@ const Dashboard = () => {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("dashboard_show_tontines") !== "false";
   });
+  // Bébé Jeton : affiché en haut de l'accueil, masquable ici.
+  const [showBaby, setShowBaby] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try { return localStorage.getItem("dashboard_show_baby") !== "false"; } catch { return true; }
+  });
   const [blocksOrder, setBlocksOrder] = useState<BlockKey[]>(() => {
     if (typeof window === "undefined") return [...DEFAULT_BLOCKS_ORDER];
     try {
@@ -119,14 +125,19 @@ const Dashboard = () => {
     setShowTontines(v);
     try { localStorage.setItem("dashboard_show_tontines", String(v)); } catch {}
   };
+  const toggleBaby = (v: boolean) => {
+    setShowBaby(v);
+    try { localStorage.setItem("dashboard_show_baby", String(v)); } catch { /* préférence non mémorisée */ }
+  };
   const resetCustomization = () => {
     togglePredictions(true);
     togglePlan(true);
     toggleTransactions(true);
     toggleTontines(true);
+    toggleBaby(true);
     persistOrder([...DEFAULT_BLOCKS_ORDER]);
   };
-  const hiddenCount = [showPredictions, showPlan, showTransactions, showTontines].filter(v => !v).length;
+  const hiddenCount = [showPredictions, showPlan, showTransactions, showTontines, showBaby].filter(v => !v).length;
 
   
 
@@ -599,7 +610,19 @@ const Dashboard = () => {
                 <SheetTitle className="text-foreground">Personnaliser mon accueil</SheetTitle>
                 <SheetDescription>Active, masque ou réorganise les sections du tableau de bord.</SheetDescription>
               </SheetHeader>
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 flex items-center justify-between gap-3 glass-card rounded-xl p-3">
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor="dashboard-show-baby" className="text-sm font-medium text-foreground">Mon bébé Jeton</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Toujours en haut de l'accueil</p>
+                </div>
+                <Switch
+                  id="dashboard-show-baby"
+                  checked={showBaby}
+                  onCheckedChange={toggleBaby}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+              <div className="mt-2 space-y-2">
                 {blocksOrder.map((key, idx) => {
                   const meta: Record<BlockKey, { label: string; desc: string; checked?: boolean; onChange?: (v: boolean) => void; toggleable: boolean }> = {
                     wallets: { label: "Soldes (Revenus / Dépenses)", desc: "Toujours visible", toggleable: false },
@@ -661,6 +684,9 @@ const Dashboard = () => {
           </Sheet>
         </div>
       </div>
+
+      {/* Bébé Jeton : nourri à chaque transaction notée */}
+      {showBaby && <BabyCard />}
 
       <div className="flex gap-1 p-1 glass-card period-rail rounded-xl mb-2 sm:mb-3 overflow-x-auto">
         {(["Jour", "Semaine", "Mois", "Année"] as const).map((p) => (
