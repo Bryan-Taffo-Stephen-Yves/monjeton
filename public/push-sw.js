@@ -18,7 +18,7 @@ self.addEventListener("push", (event) => {
     body: payload.body || "N'oublie pas de noter tes dépenses du jour.",
     icon: payload.icon || "/pwa-icon-192.png",
     badge: payload.badge || "/notification-badge-96.png",
-    data: { url: payload.url || "/new-transaction" },
+    data: { url: payload.url || "/transactions/new" },
     tag: payload.tag || "daily-reminder",
     renotify: true,
   };
