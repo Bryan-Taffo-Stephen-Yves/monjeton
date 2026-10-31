@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { formatMoneySmart } from "@/lib/formatMoney";
 import { supabase } from "@/integrations/supabase/client";
+import { initSessionMonitor } from "@/lib/security";
 
 const PIN_STORAGE_KEY = "track_emoney_pin";
 const SALT = "monjeton_2025_salt_";
@@ -108,6 +109,13 @@ export const PrivacyProvider = ({ children }: { children: ReactNode }) => {
   const lock = () => {
     if (pinEnabled) setIsLocked(true);
   };
+
+  // Après 30 min sans activité, on verrouille avec le code PIN (s'il existe)
+  // au lieu de déconnecter : l'utilisateur reste connecté.
+  useEffect(() => {
+    if (!pinEnabled || isLocked) return;
+    return initSessionMonitor(() => setIsLocked(true));
+  }, [pinEnabled, isLocked]);
 
   const setPin = async (newPin: string) => {
     const pinHash = await hashPin(newPin);
