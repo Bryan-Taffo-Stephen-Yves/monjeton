@@ -92,6 +92,62 @@ export type Database = {
         }
         Relationships: []
       }
+      baby_companions: {
+        Row: {
+          born_at: string
+          created_at: string
+          name: string
+          notifications_enabled: boolean
+          updated_at: string
+          user_id: string
+          variant: string
+        }
+        Insert: {
+          born_at?: string
+          created_at?: string
+          name: string
+          notifications_enabled?: boolean
+          updated_at?: string
+          user_id: string
+          variant?: string
+        }
+        Update: {
+          born_at?: string
+          created_at?: string
+          name?: string
+          notifications_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+          variant?: string
+        }
+        Relationships: []
+      }
+      baby_feed_days: {
+        Row: {
+          day: string
+          fed_at: string
+          user_id: string
+        }
+        Insert: {
+          day: string
+          fed_at: string
+          user_id: string
+        }
+        Update: {
+          day?: string
+          fed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baby_feed_days_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "baby_companions"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       brvm_cache: {
         Row: {
           data: Json
@@ -2796,6 +2852,15 @@ export type Database = {
         Args: { _email: string; _txn_id: string }
         Returns: Json
       }
+      baby_hunger_candidates: {
+        Args: never
+        Returns: {
+          last_fed_at: string
+          name: string
+          user_id: string
+          variant: string
+        }[]
+      }
       claim_pending_payment: { Args: never; Returns: Json }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       clear_user_pin: { Args: never; Returns: undefined }
@@ -2804,6 +2869,17 @@ export type Database = {
         Returns: Json
       }
       free_limit: { Args: { _feature: string }; Returns: number }
+      get_baby_status: {
+        Args: never
+        Returns: {
+          born_at: string
+          fed_days: number
+          last_fed_at: string
+          name: string
+          notifications_enabled: boolean
+          variant: string
+        }[]
+      }
       get_invite_by_token: {
         Args: { _token: string }
         Returns: {

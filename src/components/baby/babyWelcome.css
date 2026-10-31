@@ -1,0 +1,96 @@
+/* 4ᵉ écran de bienvenue : le bébé Jeton (fond dégradé à la place d'une photo). */
+.mj-entry .baby-welcome-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 62% at 50% 74%, #2f6418 0%, #1d3a18 34%, #142019 64%, #111a15 100%);
+}
+.mj-entry .baby-welcome-ring {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #7cff3a2e 0%, #7cff3a12 42%, transparent 68%);
+  animation: baby-welcome-glow 4.5s ease-in-out infinite;
+}
+.mj-entry .baby-welcome-ring.glow-2 {
+  top: 66%;
+  width: 230px;
+  height: 230px;
+  background: radial-gradient(circle, #b9f29d26 0%, transparent 70%);
+  animation-delay: -2.2s;
+}
+.mj-entry .baby-welcome-spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b9f29d;
+  box-shadow: 0 0 12px #7cff3a;
+  opacity: 0.75;
+  animation: baby-welcome-float 5s ease-in-out infinite;
+}
+.mj-entry .baby-welcome-spark.spark-1 {
+  left: 16%;
+  top: 34%;
+}
+.mj-entry .baby-welcome-spark.spark-2 {
+  right: 14%;
+  top: 28%;
+  width: 5px;
+  height: 5px;
+  animation-delay: -1.6s;
+}
+.mj-entry .baby-welcome-spark.spark-3 {
+  right: 24%;
+  top: 46%;
+  width: 4px;
+  height: 4px;
+  animation-delay: -3.1s;
+}
+.mj-entry .baby-welcome-babies {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+.mj-entry .baby-welcome-babies .baby-welcome-girl {
+  margin-right: -18px;
+  z-index: 1;
+}
+.mj-entry .baby-welcome-babies .baby-welcome-boy {
+  margin-left: -18px;
+}
+@keyframes baby-welcome-glow {
+  50% {
+    transform: translate(-50%, -50%) scale(1.06);
+    opacity: 0.8;
+  }
+}
+@keyframes baby-welcome-float {
+  50% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+@media (max-width: 375px) {
+  .mj-entry .baby-welcome-babies .baby-welcome-girl {
+    margin-right: -30px;
+  }
+  .mj-entry .baby-welcome-babies .baby-welcome-boy {
+    margin-left: -30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mj-entry .baby-welcome-ring,
+  .mj-entry .baby-welcome-spark {
+    animation: none;
+  }
+}
