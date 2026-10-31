@@ -28,18 +28,25 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || "/";
+  const path = (event.notification.data && event.notification.data.url) || "/";
+  const targetUrl = new URL(path, self.location.origin).href;
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) {
-          client.navigate(targetUrl).catch(() => {});
-          return client.focus();
+    (async () => {
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const client = clients.find((c) => c.url.startsWith(self.location.origin));
+      if (client) {
+        // On ramène l'app au premier plan puis on ouvre la bonne page.
+        // navigate() échoue si la fenêtre n'est pas encore contrôlée par ce
+        // service worker : dans ce cas on ouvre une fenêtre neuve.
+        await client.focus();
+        try {
+          await client.navigate(targetUrl);
+          return;
+        } catch (_e) {
+          // on tente openWindow ci-dessous
         }
       }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-    })
+      if (self.clients.openWindow) await self.clients.openWindow(targetUrl);
+    })()
   );
 });
