@@ -108,8 +108,8 @@ Deno.serve(async (req) => {
       body,
       url: RENEW_PATH,
       tag: "subscription-reminder",
-      icon: "/pwa-icon-192.svg",
-      badge: "/pwa-icon-192.svg",
+      icon: "/pwa-icon-192.png",
+      badge: "/notification-badge-96.png",
       data: { url: RENEW_PATH, paymentUrl: RENEW_URL },
     });
 

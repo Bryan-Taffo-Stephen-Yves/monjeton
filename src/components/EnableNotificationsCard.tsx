@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, BellOff, Loader2, Smartphone } from "lucide-react";
+import { Bell, BellOff, BellRing, Loader2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -7,6 +7,7 @@ import {
   disableDailyReminders,
   isDailyReminderActive,
   pushSupported,
+  sendTestPush,
 } from "@/lib/pushNotifications";
 
 interface Props {
@@ -33,6 +34,7 @@ function isStandalone(): boolean {
 const EnableNotificationsCard = ({ variant = "card" }: Props) => {
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [supported, setSupported] = useState(true);
   const platform = useMemo(detectPlatform, []);
   const standalone = useMemo(isStandalone, []);
@@ -82,6 +84,36 @@ const EnableNotificationsCard = ({ variant = "card" }: Props) => {
     });
   };
 
+  const handleTest = async () => {
+    setTesting(true);
+    const res = await sendTestPush();
+    setTesting(false);
+    if (res.ok === true) {
+      toast({
+        title: "Notification envoyée",
+        description: "Elle arrive dans quelques secondes. Tu peux fermer l'app pour voir.",
+      });
+      return;
+    }
+    const map: Record<string, string> = {
+      no_subscription: "Ce téléphone n'est pas abonné. Désactive puis réactive les rappels.",
+      missing_vapid_secret: "Configuration serveur incomplète (clé privée manquante).",
+      not_authenticated: "Connecte-toi pour tester.",
+    };
+    toast({
+      title: "Test impossible",
+      description: map[res.error] || "Réessaie dans un instant.",
+      variant: "destructive",
+    });
+  };
+
+  const testButton = (
+    <Button size="sm" variant="outline" onClick={handleTest} disabled={testing}>
+      {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <BellRing className="w-3.5 h-3.5 mr-1" />}
+      Tester
+    </Button>
+  );
+
   const handleDisable = async () => {
     setLoading(true);
     await disableDailyReminders();
@@ -102,15 +134,18 @@ const EnableNotificationsCard = ({ variant = "card" }: Props) => {
             <p className="text-xs text-muted-foreground truncate">Matin et soir, si aucune dépense saisie.</p>
           </div>
         </div>
-        <Button
-          size="sm"
-          variant={active ? "outline" : "default"}
-          onClick={active ? handleDisable : handleEnable}
-          disabled={loading}
-          className={active ? "" : "gradient-primary text-primary-foreground"}
-        >
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : active ? "Désactiver" : "Activer"}
-        </Button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {active && testButton}
+          <Button
+            size="sm"
+            variant={active ? "outline" : "default"}
+            onClick={active ? handleDisable : handleEnable}
+            disabled={loading}
+            className={active ? "" : "gradient-primary text-primary-foreground"}
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : active ? "Désactiver" : "Activer"}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -128,10 +163,13 @@ const EnableNotificationsCard = ({ variant = "card" }: Props) => {
           </p>
           <div className="flex gap-2">
             {active ? (
-              <Button size="sm" variant="outline" onClick={handleDisable} disabled={loading}>
-                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <BellOff className="w-3.5 h-3.5 mr-1" />}
-                Désactiver
-              </Button>
+              <>
+                {testButton}
+                <Button size="sm" variant="outline" onClick={handleDisable} disabled={loading}>
+                  {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <BellOff className="w-3.5 h-3.5 mr-1" />}
+                  Désactiver
+                </Button>
+              </>
             ) : (
               <Button size="sm" onClick={handleEnable} disabled={loading} className="gradient-primary text-primary-foreground">
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Bell className="w-3.5 h-3.5 mr-1" />}

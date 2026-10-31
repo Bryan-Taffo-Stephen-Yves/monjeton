@@ -439,7 +439,7 @@ Deno.serve(async (req) => {
 
     const msg = pickMessage(sub.user_id, pool, day);
     const payload = JSON.stringify({
-      title: msg.title, body: msg.body, url: "/new-transaction", tag: `daily-${slot}`,
+      title: msg.title, body: msg.body, url: "/transactions/new", tag: `daily-${slot}`,
     });
 
     try {
