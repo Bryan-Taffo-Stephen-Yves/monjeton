@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { HelpCircle, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isIOSNative } from "@/lib/platform";
+import { isStoreApp } from "@/lib/platform";
 import { checkoutStartedRecently } from "@/lib/jeko";
 
 const DISMISS_KEY = "paid_no_pro_banner_dismissed";
@@ -26,7 +26,7 @@ const PaidButNoProBanner = () => {
       .then(({ data }) => setIsPro(data === true));
   }, [user]);
 
-  if (isIOSNative()) return null;
+  if (isStoreApp()) return null;
   // Seulement pour qui a lancé un paiement récemment : sinon le message
   // « tu as déjà payé ? » s'affichait à tous les comptes gratuits.
   if (!checkoutStartedRecently()) return null;

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/MoneyInput";
 import { Label } from "@/components/ui/label";
 import { openJekoPro } from "@/lib/jeko";
-import { isIOSNative } from "@/lib/platform";
+import { isStoreApp } from "@/lib/platform";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 
 export interface ParsedResult {
@@ -207,7 +207,7 @@ const ScanResultCard = ({ result, categories, wallets, onConfirm, onReject, isPr
       )}
 
       {!isPremium ? (
-        isIOSNative() ? (
+        isStoreApp() ? (
           <div className="glass rounded-xl p-4 text-center space-y-1">
             <p className="text-sm font-semibold text-foreground">Fonctionnalité réservée à Mon Jeton Pro</p>
           </div>
