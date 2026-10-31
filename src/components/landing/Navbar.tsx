@@ -205,6 +205,14 @@ const Navbar = () => {
 
           <button
             type="button"
+            onClick={() => navigate("/login")}
+            className="px-4 py-2 rounded-full text-sm font-semibold text-[#EAFBEA] whitespace-nowrap transition-colors hover:bg-[rgba(124,255,58,0.08)]"
+          >
+            {lt.nav_login}
+          </button>
+
+          <button
+            type="button"
             onClick={() => navigate("/signup")}
             className="px-5 py-2 rounded-full text-sm font-bold text-white whitespace-nowrap transition-transform hover:scale-105"
             style={{
@@ -293,6 +301,17 @@ const Navbar = () => {
                     </button>
                   ))}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate("/login");
+                  }}
+                  className="text-center py-3 rounded-full text-sm font-bold text-[#EAFBEA] border border-[rgba(234,251,234,0.25)]"
+                >
+                  {lt.nav_login}
+                </button>
 
                 <button
                   type="button"
