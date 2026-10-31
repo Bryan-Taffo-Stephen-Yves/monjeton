@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode, useCallback } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { initSessionMonitor } from "@/lib/security";
-import { authLinkBase, isNativeShell } from "@/lib/appEntry";
+import { authLinkBase } from "@/lib/appEntry";
 import { setActiveCurrency } from "@/lib/currencyStore";
 import type { CurrencyCode } from "@/lib/currency";
 
@@ -122,16 +121,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile((prev: any) => (prev ? { ...prev, ...partial } : prev));
   }, []);
 
-  // Auto-logout on inactivity (30 min) — navigateur uniquement. Dans l'app
-  // installée, on resterait sinon renvoyé à l'écran de connexion à chaque
-  // retour dans l'app ; le code PIN (verrouillage) protège l'accès.
-  useEffect(() => {
-    if (!user || isNativeShell()) return;
-    const cleanup = initSessionMonitor(() => {
-      signOut();
-    });
-    return cleanup;
-  }, [user, signOut]);
+  // Plus de déconnexion automatique après 30 min d'inactivité : la session
+  // reste ouverte jusqu'à ce que l'utilisateur se déconnecte lui-même.
+  // Si un code PIN est activé, l'app se verrouille après inactivité
+  // (voir PrivacyContext) au lieu de déconnecter.
 
   return (
     <AuthContext.Provider value={{ session, user, profile, loading, isAdmin, refreshProfile, updateProfileLocal, signUp, signIn, signOut }}>

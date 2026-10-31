@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { compressReceipt, fileToBase64 } from "@/lib/imageCompression";
 import { consumeFeature, fetchMonthlyUsage, limitReachedMessage, formatResetDate, type FeatureQuota } from "@/lib/freePlan";
+import { isStoreApp } from "@/lib/platform";
 import UpgradeSheet from "@/components/UpgradeSheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -437,7 +438,7 @@ const Scan = () => {
           </span>
           {scansRemaining <= 0 && (
             <Button onClick={() => showLimit()} size="sm" className="gradient-primary text-primary-foreground">
-              {scanLimit === FREE_SCAN_LIMIT ? "Passer à Pro" : "Voir Ultra Pro"}
+              {isStoreApp() ? "En savoir plus" : scanLimit === FREE_SCAN_LIMIT ? "Passer à Pro" : "Voir Ultra Pro"}
             </Button>
           )}
         </div>

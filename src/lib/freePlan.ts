@@ -7,6 +7,7 @@
 // messages lisibles.
 
 import { supabase } from "@/integrations/supabase/client";
+import { isStoreApp } from "@/lib/platform";
 
 export type FreeFeature =
   | "manual_expense"
@@ -142,10 +143,12 @@ export function limitReachedMessage(feature: FreeFeature, quota?: FeatureQuota) 
   const reset = quota?.resetsAt
     ? `le ${formatResetDate(quota.resetsAt).replace(/^1 /, "1er ")}`
     : formatResetDate(null);
+  // Dans l'app installée, pas d'invitation à s'abonner (voir isStoreApp).
+  const storeApp = isStoreApp();
   if (quota?.plan === "pro") {
     return {
       title: "Limite du plan Pro atteinte",
-      description: `Tu as utilisé tes ${quota.limit ?? ""} ${featureLabel(feature)} de ce mois. Le compteur repart ${reset} — ou passe à Ultra Pro pour continuer sans limite.`.replace(
+      description: `Tu as utilisé tes ${quota.limit ?? ""} ${featureLabel(feature)} de ce mois. Le compteur repart ${reset}${storeApp ? "." : " — ou passe à Ultra Pro pour continuer sans limite."}`.replace(
         /\s+/g,
         " "
       ),
@@ -153,7 +156,7 @@ export function limitReachedMessage(feature: FreeFeature, quota?: FeatureQuota) 
   }
   return {
     title: "Limite du plan gratuit atteinte",
-    description: `Tu as utilisé tes ${quota?.limit ?? ""} ${featureLabel(feature)} de ce mois. Le compteur repart ${reset} — ou passe au Pro pour continuer.`.replace(
+    description: `Tu as utilisé tes ${quota?.limit ?? ""} ${featureLabel(feature)} de ce mois. Le compteur repart ${reset}${storeApp ? "." : " — ou passe au Pro pour continuer."}`.replace(
       /\s+/g,
       " "
     ),

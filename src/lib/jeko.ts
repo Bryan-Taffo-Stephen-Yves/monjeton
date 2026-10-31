@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { isStoreApp } from "@/lib/platform";
 
 export type JekoMethod = "wave" | "orange" | "mtn" | "moov" | "djamo";
 
@@ -67,6 +68,8 @@ type JekoPlan = "pro" | "ultra";
  */
 function openCheckout(plan: JekoPlan): void {
   if (typeof window === "undefined") return;
+  // Aucun achat dans l'app installée (voir isStoreApp), même si un bouton a été oublié.
+  if (isStoreApp()) return;
   if (!(window as any).__jekoCheckoutMounted) {
     // Sécurité : la modale doit être montée, sinon on prévient au lieu de
     // perdre le paiement.

@@ -292,6 +292,17 @@ const Hero = () => {
                 {lt.hero_cta_signup}
               </button>
               <button
+                onClick={() => navigate("/login")}
+                className="font-display font-bold px-6 py-3 rounded-xl transition-colors hover:bg-white/10"
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  color: TEXT,
+                  border: "1px solid rgba(234,251,234,0.35)",
+                }}
+              >
+                {lt.nav_login}
+              </button>
+              <button
                 onClick={() => scrollToId("pricing")}
                 className="font-display font-bold px-6 py-3 rounded-xl transition-colors"
                 style={{
