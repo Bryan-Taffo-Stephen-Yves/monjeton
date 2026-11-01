@@ -17,10 +17,10 @@
     <meta name="description" content="Mon Jeton : l'app de gestion financière personnelle en Franc CFA. Suivez vos dépenses, revenus, budgets et épargne facilement.">
     <meta name="author" content="Djaitech" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b849a5f-0628-48c8-9e86-c698bf3498cd/id-preview-4bbfddb5--55188b70-3d01-47c3-9779-22700bac360a.lovable.app-1771181945363.png">
+    <meta property="og:image" content="https://monjeton.app/og-image.png">
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@monjeton" />
-    <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b849a5f-0628-48c8-9e86-c698bf3498cd/id-preview-4bbfddb5--55188b70-3d01-47c3-9779-22700bac360a.lovable.app-1771181945363.png">
+    <meta name="twitter:image" content="https://monjeton.app/og-image.png">
     <meta property="og:title" content="Mon Jeton — Suivi financier en FCFA">
     <meta name="twitter:title" content="Mon Jeton — Suivi financier en FCFA">
     <meta property="og:description" content="Mon Jeton : l'app de gestion financière personnelle en Franc CFA.">
@@ -88,16 +88,13 @@
       }
       #splash-screen.hide { opacity: 0; pointer-events: none; }
       #splash-logo {
-        width: 78px; height: 78px; border-radius: 20px;
-        background: linear-gradient(150deg, #7CFF3A, #5fd41f);
+        width: 78px; height: 78px; border-radius: 50%;
+        background: linear-gradient(150deg, #8CFF45, #5fd41f);
         display: flex; align-items: center; justify-content: center;
         box-shadow: 0 0 44px rgba(124, 255, 58, 0.34);
         animation: sp-pop 0.5s ease-out both;
       }
-      #splash-logo span {
-        color: #14171C; font-family: system-ui, sans-serif;
-        font-weight: 800; font-size: 34px; letter-spacing: -0.04em;
-      }
+      #splash-logo svg { width: 44px; height: 44px; display: block; }
       #splash-screen p {
         color: #7CFF3A; font-family: system-ui, sans-serif;
         font-weight: 700; font-size: 19px; margin-top: 18px; letter-spacing: -0.01em;
@@ -120,8 +117,8 @@
         0% { transform: translateX(-100%); }
         100% { transform: translateX(330%); }
       }
-      /* Le splash suit le thème choisi. Le carré du logo reste lime dans
-         tous les cas : c'est une surface pleine avec un M sombre dessus,
+      /* Le splash suit le thème choisi. Le rond du logo reste lime dans
+         tous les cas : c'est une surface pleine avec les barres sombres dessus,
          lisible partout. Seuls le fond, le texte et la barre changent. */
       .light #splash-screen { background: #FFFFFF; }
       .cream #splash-screen { background: #FAF8F3; }
@@ -141,7 +138,7 @@
 
   <body>
     <div id="splash-screen">
-      <div id="splash-logo"><span>MJ</span></div>
+      <div id="splash-logo"><svg viewBox="0 0 46 46" aria-hidden="true" fill="#14171C"><rect x="4" y="22" width="10" height="18" rx="3.5"/><rect x="18" y="13" width="10" height="27" rx="3.5"/><rect x="32" y="4" width="10" height="35" rx="3.5"/></svg></div>
       <p>Mon Jeton</p>
       <div id="splash-bar"></div>
     </div>
